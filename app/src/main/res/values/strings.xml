@@ -7,4 +7,5 @@
     <string name="device_name">Device name</string>
     <string name="bluetooth_available">Bluetooth available</string>
     <string name="bluetooth_turned_on">Bluetooth turned on?</string>
+    <string name="visible_ble_devices">Visible BLE devices:</string>
 </resources>
