@@ -46,8 +46,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         if (btManager.adapter?.isEnabled == true && keyboardPeripheral == null) {
             keyboardPeripheral = KeyboardPeripheral(this)
-            keyboardPeripheral?.setDeviceName("BLERC Keyboard")
-            keyboardPeripheral?.startAdvertising()
+//            keyboardPeripheral?.setDeviceName("BLERC Keyboard")
         }
     }
 
