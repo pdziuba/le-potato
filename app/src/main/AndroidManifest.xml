@@ -18,19 +18,19 @@
          location information, you can strongly assert that your app
          doesn't derive physical location.
     -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<!--    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />-->
     <!--
  Needed only if your app makes the device discoverable to Bluetooth
          devices.
     -->
-    <!--    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />-->
+        <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <!--
  Needed only if your app communicates with already-paired Bluetooth
          devices.
     -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!--    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
+<!--    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />-->
 
     <application
         android:allowBackup="true"
@@ -39,6 +39,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <service android:name=".bleservice.BLEService" />
         <activity
             android:name=".BluetoothStatusActivity"
             android:exported="false"
