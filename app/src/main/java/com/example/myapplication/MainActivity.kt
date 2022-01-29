@@ -33,7 +33,14 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        findViewById<Button>(R.id.keyboard_button).setOnKeyListener(this)
+        val keyboardButton = findViewById<Button>(R.id.keyboard_button)
+        keyboardButton.setOnKeyListener(this)
+        keyboardButton.setOnFocusChangeListener { v, hasFocus ->
+            if (hasFocus) {
+                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
+            }
+        }
         askForPermissions()
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         if (btManager.adapter?.isEnabled == false) {
@@ -69,10 +76,10 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
     }
 
     fun sendText(view: View) {
-        if (view.requestFocus()) {
+        if (view.hasFocus()) {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showSoftInput(view, InputMethodManager.SHOW_FORCED)
-        } else {
+        } else if (!view.requestFocus()) {
             Log.e(tag, "Cannot acquire focus")
         }
     }

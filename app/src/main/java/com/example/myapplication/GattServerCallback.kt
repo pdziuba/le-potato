@@ -5,10 +5,7 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.os.Handler
 import android.os.ParcelUuid
 import android.util.Log
@@ -33,7 +30,11 @@ val bondStateLabels: Map<Int, String> = object : HashMap<Int, String>() {
     }
 }
 
-class GattServerCallback(var applicationContext: Context, private var bluetoothLeAdvertiser: BluetoothLeAdvertiser, private val reportMap: ByteArray) :
+class GattServerCallback(
+    var applicationContext: Context,
+    private var bluetoothLeAdvertiser: BluetoothLeAdvertiser,
+    private val reportMap: ByteArray
+) :
     BluetoothGattServerCallback() {
     private val TAG = GattServerCallback::class.java.simpleName
     private val handler = Handler(applicationContext.mainLooper)
@@ -105,7 +106,7 @@ class GattServerCallback(var applicationContext: Context, private var bluetoothL
                 .setTimeout(0)
                 .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
                 .build()
-            val serviceUUIDs = gattServer?.services?.map{
+            val serviceUUIDs = gattServer?.services?.map {
                 ParcelUuid.fromString(it.uuid.toString())
             } ?: throw java.lang.IllegalStateException("No services present in gatt server")
 
@@ -132,6 +133,7 @@ class GattServerCallback(var applicationContext: Context, private var bluetoothL
             )
         }
     }
+
     /**
      * Stops advertising
      */
@@ -157,13 +159,16 @@ class GattServerCallback(var applicationContext: Context, private var bluetoothL
         }
     }
 
-    fun startReportingNotifications(dataSendingRate: Long, inputReportQueue: Queue<ByteArray>, inputReportCharacteristic: BluetoothGattCharacteristic?) {
+    fun startReportingNotifications(
+        dataSendingRate: Long,
+        inputReportQueue: Queue<ByteArray>,
+        inputReportCharacteristic: BluetoothGattCharacteristic?
+    ) {
         // send report each dataSendingRate, if data available
         Timer().scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 val polled = inputReportQueue.poll()
                 if (polled != null && inputReportCharacteristic != null) {
-                    Log.d(TAG, "Got polled value")
                     inputReportCharacteristic.value = polled
                     handler.post {
                         val devices = devices
@@ -204,9 +209,12 @@ class GattServerCallback(var applicationContext: Context, private var bluetoothL
             TAG,
             "onConnectionStateChange status: " + status + ", newState: " + connStateLabels[newState]
         )
+        if (status != 0) {
+            Log.e(TAG, "Error on connection state change: $status")
+            return
+        }
         when (newState) {
             BluetoothProfile.STATE_CONNECTED -> {
-                // check bond status
                 Log.d(
                     TAG,
                     "BluetoothProfile.STATE_CONNECTED bondState: " + bondStateLabels[device.bondState]
@@ -215,69 +223,16 @@ class GattServerCallback(var applicationContext: Context, private var bluetoothL
                     bluetoothLeAdvertiser.stopAdvertising(advertiseCallback)
                     isAdvertising = false
                 }
-                if (device.bondState == BluetoothDevice.BOND_NONE) {
-                    applicationContext.registerReceiver(object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action
-                            Log.d(TAG, "onReceive action: $action")
-                            if (BluetoothDevice.ACTION_BOND_STATE_CHANGED == action) {
-                                val state = intent.getIntExtra(
-                                    BluetoothDevice.EXTRA_BOND_STATE,
-                                    BluetoothDevice.ERROR
-                                )
-                                if (state == BluetoothDevice.BOND_BONDED) {
-                                    // successfully bonded
-                                    context.unregisterReceiver(this)
-                                    handler.post {
-                                        if (gattServer != null) {
-                                            gattServer!!.connect(device, false)
-                                        }
-                                    }
-                                    synchronized(bluetoothDevicesMap) {
-                                        bluetoothDevicesMap.put(
-                                            device.address,
-                                            device
-                                        )
-                                    }
-                                    Log.d(TAG, "successfully bonded")
-                                } else {
-                                    Log.e(
-                                        TAG,
-                                        String.format("unexpected bonding state: %d", state)
-                                    )
-                                }
-                            }
-                        }
-                    }, IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED))
-                    device.createBond()
-                } else if (device.bondState == BluetoothDevice.BOND_BONDED) {
-                    handler.post {
-                        gattServer!!.connect(device, false)
-                    }
-                    synchronized(bluetoothDevicesMap) {
-                        bluetoothDevicesMap.put(
-                            device.address,
-                            device
-                        )
-                    }
+                synchronized(bluetoothDevicesMap) {
+                    bluetoothDevicesMap.put(device.address, device)
                 }
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
                 val deviceAddress = device.address
 
-                // try reconnect immediately but only once
                 synchronized(bluetoothDevicesMap) {
-                    if (bluetoothDevicesMap.containsKey(deviceAddress)) {
-                        handler.post {
-                            if (gattServer != null) {
-                                // gattServer.cancelConnection(device);
-                                gattServer!!.connect(device, false)
-                            }
-                        }
-                    } else {
-                        startAdvertising()
-                    }
                     bluetoothDevicesMap.remove(deviceAddress)
+                    startAdvertising()
                 }
             }
             else -> {}
