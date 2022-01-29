@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
         if (btManager.adapter?.isEnabled == true && keyboardPeripheral == null) {
             keyboardPeripheral = KeyboardPeripheral(this)
 //            keyboardPeripheral?.setDeviceName("BLERC Keyboard")
+            Log.i(tag, "Size of reportmap is ${keyboardPeripheral?.reportMap?.size}")
         }
     }
 
@@ -83,7 +84,11 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
         Log.d(tag, "Received event ${event.toString()} with keycode $keyCode")
         val keyCodeUS: Int = KeyboardPeripheral.keyCode(event?.unicodeChar?.toChar().toString()).toInt()
-        if (keyCodeUS != 0 && event?.action == KeyEvent.ACTION_DOWN) {
+        if (event?.action == KeyEvent.ACTION_DOWN) {
+            if (keyCodeUS == 0) {
+                Log.e(tag, "Kurwa mać")
+                return false
+            }
             var modifier = 0
 
             if (event.isAltPressed) {

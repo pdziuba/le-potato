@@ -3,6 +3,8 @@ package com.example.myapplication;
 import android.content.Context;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.util.Arrays;
 
 /**
@@ -306,8 +308,9 @@ public final class KeyboardPeripheral extends HidPeripheral {
             END_COLLECTION(0),
     };
 
+    @NonNull
     @Override
-    protected byte[] getReportMap() {
+    public byte[] getReportMap() {
         return REPORT_MAP;
     }
 

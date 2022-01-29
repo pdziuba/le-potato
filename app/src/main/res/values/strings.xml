@@ -4,8 +4,9 @@
     <string name="button_bluetooth">Bluetooth status</string>
     <string name="touchpad">Touchpad</string>
     <string name="ble">BLE</string>
-    <string name="device_name">Device name</string>
+    <string name="device_name">Advertised name</string>
+    <string name="device_address">Device hw address</string>
     <string name="bluetooth_available">Bluetooth available</string>
     <string name="bluetooth_turned_on">Bluetooth turned on?</string>
-    <string name="visible_ble_devices">Nearby BLE devices:</string>
+    <string name="visible_ble_devices">Connected devices:</string>
 </resources>
