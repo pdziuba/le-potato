@@ -1,6 +1,5 @@
 package com.example.myapplication;
 
-import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -318,10 +317,9 @@ public final class KeyboardPeripheral extends HidPeripheral {
      * Constructor<br />
      * Before constructing the instance, check the Bluetooth availability.
      *
-     * @param context the applicationContext
      */
-    public KeyboardPeripheral(final Context context) throws UnsupportedOperationException {
-        super(context.getApplicationContext(), true, true, false, 20);
+    public KeyboardPeripheral() throws UnsupportedOperationException {
+        super(true, true, false, 20);
     }
     
     private static final int KEY_PACKET_MODIFIER_KEY_INDEX = 0;

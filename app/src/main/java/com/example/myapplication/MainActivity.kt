@@ -1,13 +1,15 @@
 package com.example.myapplication
 
-import android.Manifest.permission.BLUETOOTH_ADMIN
-import android.Manifest.permission.BLUETOOTH_ADVERTISE
+import android.Manifest.permission.*
 import android.bluetooth.BluetoothManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -46,24 +48,26 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
         if (btManager.adapter?.isEnabled == false) {
             BluetoothHelper.enableBluetoothOrFinish(this)
         }
-    }
+        val intent = Intent(this, BLEService::class.java)
+        bindService(intent, object : ServiceConnection {
+            override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
+                val binder = _binder as BLEService.LocalBinder
+                val service = binder.getService()
+                keyboardPeripheral = service.hidPeripheral as KeyboardPeripheral
+                service.startAdvertising()
+            }
 
-    override fun onResume() {
-        super.onResume()
-        val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-        if (btManager.adapter?.isEnabled == true && keyboardPeripheral == null) {
-            keyboardPeripheral = KeyboardPeripheral(this)
-//            keyboardPeripheral?.setDeviceName("BLERC Keyboard")
-            Log.i(tag, "Size of reportmap is ${keyboardPeripheral?.reportMap?.size}")
-        }
-    }
+            override fun onServiceDisconnected(p0: ComponentName?) {
+                TODO("Not yet implemented")
+            }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        keyboardPeripheral?.stopAdvertising()
+        }, BIND_AUTO_CREATE)
     }
 
     private fun askForPermissions() {
+        if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PERMISSION_DENIED) {
+            requestPermissionsLauncher.launch(ACCESS_FINE_LOCATION)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
                 requestPermissionsLauncher.launch(BLUETOOTH_ADVERTISE)
