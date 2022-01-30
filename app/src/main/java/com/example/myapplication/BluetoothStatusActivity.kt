@@ -1,10 +1,15 @@
 package com.example.myapplication
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
+import android.os.IBinder
+import android.util.Log
 import android.view.View
 import android.widget.CheckBox
 import android.widget.TextView
@@ -16,9 +21,10 @@ import com.example.myapplication.bledevices.BLEDevicesListAdapter
 
 
 class BluetoothStatusActivity : AppCompatActivity(),
-    BLEDevicesListAdapter.ItemClickListener {
+    BLEDevicesListAdapter.ItemClickListener, DeviceDetectedListener {
     private var bleDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
+    private var bleService: BLEService? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +42,22 @@ class BluetoothStatusActivity : AppCompatActivity(),
         bleDevicesListAdapter?.clickListener = this
         recyclerView.adapter = bleDevicesListAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
+        val intent = Intent(this, BLEService::class.java)
+        bindService(intent, object : ServiceConnection {
+            override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
+                Log.d("bsa", "connecting service")
+                val binder = _binder as BLEService.LocalBinder
+                val service = binder.getService()
+                service.deviceDetectedListener = this@BluetoothStatusActivity
+                service.startScanning()
+                bleService = service
+            }
+
+            override fun onServiceDisconnected(p0: ComponentName?) {
+                TODO("Not yet implemented")
+            }
+
+        }, BIND_AUTO_CREATE)
 
     }
 
@@ -76,8 +98,20 @@ class BluetoothStatusActivity : AppCompatActivity(),
         }
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        bleService?.deviceDetectedListener = null
+        bleService?.stopScanning()
+    }
 
     override fun onItemClick(view: View?, position: Int) {
         Toast.makeText(this, bleDevicesListAdapter?.getItem(position), Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDeviceDetected(device: BluetoothDevice) {
+        Log.d("bsa", "onDeviceDetected")
+        runOnUiThread {
+            bleDevicesListAdapter?.addDevice(device)
+        }
     }
 }

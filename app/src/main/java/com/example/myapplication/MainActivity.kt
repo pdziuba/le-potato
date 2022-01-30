@@ -31,7 +31,19 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
                 finish()
             }
         }
+    val connection = object : ServiceConnection {
+        override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
+            val binder = _binder as BLEService.LocalBinder
+            val service = binder.getService()
+            keyboardPeripheral = service.hidPeripheral as KeyboardPeripheral
+//                service.startAdvertising()
+        }
 
+        override fun onServiceDisconnected(p0: ComponentName?) {
+            keyboardPeripheral = null
+        }
+
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -49,19 +61,14 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
             BluetoothHelper.enableBluetoothOrFinish(this)
         }
         val intent = Intent(this, BLEService::class.java)
-        bindService(intent, object : ServiceConnection {
-            override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
-                val binder = _binder as BLEService.LocalBinder
-                val service = binder.getService()
-                keyboardPeripheral = service.hidPeripheral as KeyboardPeripheral
-                service.startAdvertising()
-            }
 
-            override fun onServiceDisconnected(p0: ComponentName?) {
-                TODO("Not yet implemented")
-            }
+        bindService(intent, connection, BIND_AUTO_CREATE)
+    }
 
-        }, BIND_AUTO_CREATE)
+    override fun onDestroy() {
+        super.onDestroy()
+        unbindService(connection)
+        keyboardPeripheral = null
     }
 
     private fun askForPermissions() {
