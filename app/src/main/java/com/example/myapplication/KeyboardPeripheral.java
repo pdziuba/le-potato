@@ -319,7 +319,7 @@ public final class KeyboardPeripheral extends HidPeripheral {
      *
      */
     public KeyboardPeripheral() throws UnsupportedOperationException {
-        super(true, true, false, 20);
+        super(true, true, false);
     }
     
     private static final int KEY_PACKET_MODIFIER_KEY_INDEX = 0;

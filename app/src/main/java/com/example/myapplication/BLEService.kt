@@ -3,8 +3,10 @@ package com.example.myapplication
 import android.app.Service
 import android.bluetooth.*
 import android.bluetooth.le.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
@@ -14,6 +16,7 @@ import com.example.myapplication.gatt.GattServiceHandler
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+
 
 val connStateLabels: Map<Int, String> = object : HashMap<Int, String>() {
     init {
@@ -35,6 +38,12 @@ interface DeviceDetectedListener {
     fun onDeviceDetected(device: BluetoothDevice)
 }
 
+interface DeviceConnectedListener {
+    fun onDeviceConnected(device: BluetoothDevice)
+    fun onDeviceConnecting(device: BluetoothDevice)
+    fun onDeviceDisconnected(device: BluetoothDevice)
+}
+
 class BLEService : Service() {
     private val tag = BLEService::class.java.simpleName
     private var handler: Handler? = null
@@ -44,12 +53,14 @@ class BLEService : Service() {
 
     private var isAdvertising = false
     private var isScanning = false
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
     private var bluetoothLeScanner: BluetoothLeScanner? = null
     private var gattServer: BluetoothGattServer? = null
     private val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
-    val hidPeripheral: HidPeripheral = KeyboardPeripheral()
+    val keyboard = KeyboardPeripheral()
     var deviceDetectedListener: DeviceDetectedListener? = null
+    var deviceConnectedListener: DeviceConnectedListener? = null
 
     override fun onCreate() {
         handler = Handler(applicationContext.mainLooper)
@@ -61,6 +72,7 @@ class BLEService : Service() {
             Log.d(tag, "Waiting for bluetooth adapter to be enabled")
             Thread.sleep(1000)
         }
+        this.bluetoothAdapter = bluetoothAdapter
         Log.d(
             tag,
             "isMultipleAdvertisementSupported:" + bluetoothAdapter.isMultipleAdvertisementSupported
@@ -74,7 +86,8 @@ class BLEService : Service() {
             ?: throw UnsupportedOperationException("Bluetooth LE Scanning is not supported on this device.")
         gattServer = bluetoothManager.openGattServer(applicationContext, GattServerCallback())
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
-        gattServiceHandlers.addAll(hidPeripheral.gattServiceHandlers)
+
+        gattServiceHandlers.addAll(keyboard.gattServiceHandlers)
         for (gattServiceHandler in gattServiceHandlers) {
             val gattService = gattServiceHandler.setup()
             if (gattService != null) {
@@ -82,9 +95,39 @@ class BLEService : Service() {
             }
         }
         startReportingNotifications(50)
+        startAdvertising()
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
+//        intentFilter.addAction(BluetoothDevice.ACTION_UUID)
+//        intentFilter.addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
+//        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
+        registerReceiver(btReceiver, intentFilter)
     }
 
-    private val devices: Set<BluetoothDevice>
+    private val btReceiver = object : BroadcastReceiver() {
+        //todo: handle turning bluetooth adapter off/on
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val bluetoothDevice =
+                intent!!.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
+            when (intent.action) {
+                BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
+                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice != null) {
+                        finalizeConnection(bluetoothDevice)
+                    }
+                }
+                else -> {
+                    Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
+                }
+            }
+        }
+
+    }
+
+    val devices: Set<BluetoothDevice>
         get() {
             val deviceSet: MutableSet<BluetoothDevice> = HashSet()
             synchronized(connectedDevicesMap) { deviceSet.addAll(connectedDevicesMap.values) }
@@ -107,7 +150,7 @@ class BLEService : Service() {
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
-            Log.i(tag, "Detected device ${result?.device?.address}")
+            super.onScanResult(callbackType, result)
             if (result != null) {
                 synchronized(detectedDevicesMap) {
                     detectedDevicesMap.put(result.device.address, result.device)
@@ -117,6 +160,7 @@ class BLEService : Service() {
         }
 
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
+            super.onBatchScanResults(results)
             Log.i(tag, "onBatchScanResults")
             if (results != null) {
                 for (result in results) {
@@ -129,6 +173,7 @@ class BLEService : Service() {
         }
 
         override fun onScanFailed(errorCode: Int) {
+            super.onScanFailed(errorCode)
             Log.e(tag, "BLE Scan failed, errorcode = $errorCode")
         }
     }
@@ -154,12 +199,10 @@ class BLEService : Service() {
                         tag,
                         "BluetoothProfile.STATE_CONNECTED bondState: " + bondStateLabels[device.bondState]
                     )
-                    handler?.post {
-                        bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
-                        isAdvertising = false
-                    }
-                    synchronized(connectedDevicesMap) {
-                        connectedDevicesMap.put(device.address, device)
+                    if (device.bondState == BluetoothDevice.BOND_BONDED) {
+                        finalizeConnection(device)
+                    } else {
+                        deviceConnectedListener?.onDeviceConnecting(device)
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
@@ -168,7 +211,11 @@ class BLEService : Service() {
                     synchronized(connectedDevicesMap) {
                         connectedDevicesMap.remove(deviceAddress)
                     }
+                    deviceConnectedListener?.onDeviceDisconnected(device)
                     startAdvertising()
+                }
+                BluetoothProfile.STATE_CONNECTING -> {
+                    deviceConnectedListener?.onDeviceConnecting(device)
                 }
                 else -> {}
             }
@@ -332,6 +379,17 @@ class BLEService : Service() {
         }
     }
 
+    private fun finalizeConnection(device: BluetoothDevice) {
+        synchronized(connectedDevicesMap) {
+            connectedDevicesMap.put(device.address, device)
+        }
+        handler?.post {
+            bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+            isAdvertising = false
+        }
+        deviceConnectedListener?.onDeviceConnected(device)
+    }
+
     private fun addService(service: BluetoothGattService) {
         var serviceAdded = false
         var tries = 0
@@ -349,7 +407,7 @@ class BLEService : Service() {
         Log.d(tag, "Service: ${service.uuid} added.")
     }
 
-    fun startAdvertising() {
+    private fun startAdvertising() {
         synchronized(connectedDevicesMap) {
             if (isAdvertising || connectedDevicesMap.isNotEmpty()) {
                 Log.w(tag, "Already advertising???")
@@ -372,12 +430,12 @@ class BLEService : Service() {
                 ParcelUuid.fromString(it.uuid.toString())
             } ?: throw java.lang.IllegalStateException("No services present in gatt server")
 
-            // set up advertising data
             val advertiseDataBuilder = AdvertiseData.Builder()
                 .setIncludeTxPowerLevel(false)
                 .setIncludeDeviceName(false)
 
-            // set up scan result
+            // todo: payload is limited to 31 bytes if device name is too long this will explode with power of 1000 suns
+            //  we may want to truncate device name somehow or prompt the user
             val scanResultBuilder = AdvertiseData.Builder()
                 .setIncludeDeviceName(true)
                 .setIncludeTxPowerLevel(false)
@@ -396,7 +454,7 @@ class BLEService : Service() {
         }
     }
 
-    fun stopAdvertising() {
+    private fun stopAdvertising() {
         if (!isAdvertising) {
             Log.d(tag, "No advertising, ignoring")
             return
@@ -425,16 +483,24 @@ class BLEService : Service() {
     fun startScanning() {
         synchronized(detectedDevicesMap) {
             if (isScanning) {
-                Log.w(tag, "Already scanning??")
+                Log.d(tag, "Already scanning, skipping")
                 return
             }
             isScanning = true
         }
-        Log.d(tag, "startScanning")
+        handler?.postDelayed({
+            Log.i(tag, "Stopping discovery after 10s.")
+            stopScanning()
+        }, 10000)
         handler?.post {
-            bluetoothLeScanner?.startScan(scanCallback)
+            Log.d(tag, "startScanning")
+            val scanSettings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+                .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
+                .setReportDelay(0)
+                .build()
+            bluetoothLeScanner?.startScan(arrayListOf(ScanFilter.Builder().build()), scanSettings, scanCallback)
         }
-
     }
 
     fun stopScanning() {
@@ -442,6 +508,7 @@ class BLEService : Service() {
             return
         }
         handler?.post {
+            Log.d(tag, "stopScanning")
             bluetoothLeScanner?.stopScan(scanCallback)
         }
         isScanning = false
@@ -491,11 +558,38 @@ class BLEService : Service() {
         }
     }
 
+    fun connectToDevice(device: BluetoothDevice?) {
+        if (device == null) {
+            return
+        }
+        synchronized(connectedDevicesMap) {
+            if (connectedDevicesMap.containsKey(device.address)) {
+                Log.d(tag, "Already connected. Skipping.")
+                return
+            }
+        }
+        handler?.post {
+            if (bluetoothAdapter?.isDiscovering == true) {
+                bluetoothAdapter?.cancelDiscovery()
+            }
+            // Todo: this (usually) doesn't work.
+            //  Peripheral devices cannot initiate connection. We should rather try reconnection with role switch.
+            if (device.bondState == BluetoothDevice.BOND_NONE) {
+                Log.i(tag, "Trying to bond with the device")
+                device.createBond()
+            }
+            gattServer?.connect(device, false)
+
+        }
+    }
+
     override fun onBind(p0: Intent?): IBinder {
         return LocalBinder()
     }
 
     override fun onDestroy() {
         stopAdvertising()
+        stopScanning()
+        unregisterReceiver(btReceiver)
     }
 }

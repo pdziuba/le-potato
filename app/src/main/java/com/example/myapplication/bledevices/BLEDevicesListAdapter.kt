@@ -59,8 +59,8 @@ class BLEDevicesListAdapter(context: Context) :
         return mData.size
     }
 
-    fun getItem(position: Int): String {
-        return deviceToString(mData[position])
+    fun getItem(position: Int): BluetoothDevice {
+        return mData[position]
     }
 
     fun addDevice(device: BluetoothDevice) {

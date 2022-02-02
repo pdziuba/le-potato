@@ -13,6 +13,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:contentDescription="@string/button_keyboard"
+        android:enabled="false"
         android:focusable="true"
         android:focusableInTouchMode="true"
         android:onClick="sendText"
@@ -20,20 +21,32 @@
         app:iconGravity="textStart"
         app:iconPadding="0dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/status_text" />
 
     <Button
         android:id="@+id/bluetooth_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         android:contentDescription="@string/button_bluetooth"
         android:onClick="showBluetoothStatus"
         app:icon="@drawable/ic_baseline_bluetooth_24"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
-        app:layout_constraintStart_toEndOf="@+id/keyboard_button"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/status_text" />
+
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="@string/status_idle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

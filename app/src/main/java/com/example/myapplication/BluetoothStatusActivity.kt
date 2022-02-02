@@ -22,6 +22,7 @@ import com.example.myapplication.bledevices.BLEDevicesListAdapter
 
 class BluetoothStatusActivity : AppCompatActivity(),
     BLEDevicesListAdapter.ItemClickListener, DeviceDetectedListener {
+    private val tag = "BluetoothStatusActivity"
     private var bleDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bleService: BLEService? = null
@@ -45,16 +46,16 @@ class BluetoothStatusActivity : AppCompatActivity(),
         val intent = Intent(this, BLEService::class.java)
         bindService(intent, object : ServiceConnection {
             override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
-                Log.d("bsa", "connecting service")
+                Log.d(tag, "connecting service")
                 val binder = _binder as BLEService.LocalBinder
                 val service = binder.getService()
                 service.deviceDetectedListener = this@BluetoothStatusActivity
-                service.startScanning()
                 bleService = service
+
             }
 
             override fun onServiceDisconnected(p0: ComponentName?) {
-                TODO("Not yet implemented")
+                bleService = null
             }
 
         }, BIND_AUTO_CREATE)
@@ -64,7 +65,7 @@ class BluetoothStatusActivity : AppCompatActivity(),
     override fun onResume() {
         super.onResume()
         if (bluetoothAdapter == null) {
-            // fuck this
+            // world cornered us again
             finish()
             return
         }
@@ -78,40 +79,43 @@ class BluetoothStatusActivity : AppCompatActivity(),
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        bleDevicesListAdapter?.clear()
-    }
-
     private fun loadBluetoothStatus() {
-        if (bluetoothAdapter != null) {
-            val isBluetoothSupported = true
-            val isBluetoothEnabled = bluetoothAdapter!!.isEnabled
-            val isBLESupported =
-                packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
-            val deviceName = bluetoothAdapter!!.name
-            findViewById<CheckBox>(R.id.bluetooth_available_checkbox).isChecked =
-                isBluetoothSupported
-            findViewById<CheckBox>(R.id.bluetooth_on_checkbox).isChecked = isBluetoothEnabled
-            findViewById<CheckBox>(R.id.ble_checkbox).isChecked = isBLESupported
-            findViewById<TextView>(R.id.device_name_text_view).text = deviceName
+        val bluetoothAdapter = bluetoothAdapter ?: return
+
+        val isBluetoothSupported = true
+        val isBluetoothEnabled = bluetoothAdapter.isEnabled
+        val isBLESupported =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val deviceName = bluetoothAdapter.name
+        findViewById<CheckBox>(R.id.bluetooth_available_checkbox).isChecked =
+            isBluetoothSupported
+        findViewById<CheckBox>(R.id.bluetooth_on_checkbox).isChecked = isBluetoothEnabled
+        findViewById<CheckBox>(R.id.ble_checkbox).isChecked = isBLESupported
+        findViewById<TextView>(R.id.device_name_text_view).text = deviceName
+        for (device in bluetoothAdapter.bondedDevices) {
+            bleDevicesListAdapter?.addDevice(device)
         }
+
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        bleService?.deviceDetectedListener = null
         bleService?.stopScanning()
+        bleService?.deviceDetectedListener = null
     }
 
     override fun onItemClick(view: View?, position: Int) {
-        Toast.makeText(this, bleDevicesListAdapter?.getItem(position), Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, bleDevicesListAdapter?.getItem(position)?.name, Toast.LENGTH_SHORT).show()
+        bleService?.connectToDevice(bleDevicesListAdapter?.getItem(position))
     }
 
     override fun onDeviceDetected(device: BluetoothDevice) {
-        Log.d("bsa", "onDeviceDetected")
         runOnUiThread {
             bleDevicesListAdapter?.addDevice(device)
         }
+    }
+
+    fun onScanButtonClicked(view: View?) {
+        bleService?.startScanning()
     }
 }

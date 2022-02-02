@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.Manifest.permission.*
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
 import android.content.Context
@@ -15,14 +16,16 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 
-class MainActivity : AppCompatActivity(), View.OnKeyListener {
+class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
     private val tag = "MainActivity"
+    private var bleService: BLEService? = null
     private var keyboardPeripheral: KeyboardPeripheral? = null
     private var requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -31,16 +34,22 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
                 finish()
             }
         }
-    val connection = object : ServiceConnection {
+    private val connection = object : ServiceConnection {
         override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
             val binder = _binder as BLEService.LocalBinder
             val service = binder.getService()
-            keyboardPeripheral = service.hidPeripheral as KeyboardPeripheral
-//                service.startAdvertising()
+            keyboardPeripheral = service.keyboard
+            service.deviceConnectedListener = this@MainActivity
+            bleService = service
+            val devices = service.devices
+            if (devices.isNotEmpty()) {
+                onDeviceConnected(devices.first())
+            }
         }
 
         override fun onServiceDisconnected(p0: ComponentName?) {
             keyboardPeripheral = null
+            bleService?.deviceConnectedListener = null
         }
 
     }
@@ -67,6 +76,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
 
     override fun onDestroy() {
         super.onDestroy()
+        bleService?.deviceConnectedListener = null
         unbindService(connection)
         keyboardPeripheral = null
     }
@@ -75,9 +85,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
         if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PERMISSION_DENIED) {
             requestPermissionsLauncher.launch(ACCESS_FINE_LOCATION)
         }
+        if (ContextCompat.checkSelfPermission(this, ACCESS_BACKGROUND_LOCATION) == PERMISSION_DENIED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                requestPermissionsLauncher.launch(ACCESS_BACKGROUND_LOCATION)
+            }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
                 requestPermissionsLauncher.launch(BLUETOOTH_ADVERTISE)
+            }
+            if (ContextCompat.checkSelfPermission(this, BLUETOOTH_CONNECT) == PERMISSION_DENIED) {
+                requestPermissionsLauncher.launch(BLUETOOTH_CONNECT)
             }
         } else {
             if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADMIN) == PERMISSION_DENIED) {
@@ -100,6 +118,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
     }
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
+        // todo: simplify this
         Log.d(tag, "Received event ${event.toString()} with keycode $keyCode")
         val keyCodeUS: Int = KeyboardPeripheral.keyCode(event?.unicodeChar?.toChar().toString()).toInt()
         if (event?.action == KeyEvent.ACTION_DOWN) {
@@ -125,16 +144,23 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
         return true
     }
 
-//    override fun onDeviceConnected(device: BluetoothDevice) {
-//        runOnUiThread {
-//            Toast.makeText(this, "Device ${device.name} connected!", Toast.LENGTH_SHORT).show()
-//        }
-//
-//    }
-//
-//    override fun onDeviceDisconnected(device: BluetoothDevice) {
-//        runOnUiThread {
-//            Toast.makeText(this, "Device ${device.name} disconnected!", Toast.LENGTH_SHORT).show()
-//        }
-//    }
+    override fun onDeviceConnected(device: BluetoothDevice) {
+        runOnUiThread {
+            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_connected, device.name)
+            findViewById<Button>(R.id.keyboard_button).isEnabled = true
+        }
+    }
+
+    override fun onDeviceConnecting(device: BluetoothDevice) {
+        runOnUiThread {
+            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_connecting)
+        }
+    }
+
+    override fun onDeviceDisconnected(device: BluetoothDevice) {
+        runOnUiThread {
+            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_idle)
+            findViewById<Button>(R.id.keyboard_button).isEnabled = false
+        }
+    }
 }

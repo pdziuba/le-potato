@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BLERC</string>
+    <string name="app_name">Le Potato</string>
     <string name="button_keyboard">Keyboard</string>
     <string name="button_bluetooth">Bluetooth status</string>
     <string name="touchpad">Touchpad</string>
@@ -8,5 +8,9 @@
     <string name="device_address">Device hw address</string>
     <string name="bluetooth_available">Bluetooth available</string>
     <string name="bluetooth_turned_on">Bluetooth turned on?</string>
-    <string name="visible_ble_devices">Connected devices:</string>
+    <string name="visible_ble_devices">Nearby devices:</string>
+    <string name="scan_for_devices">Scan for devices</string>
+    <string name="status_idle">Waiting for connection</string>
+    <string name="status_connecting">Connecting...</string>
+    <string name="status_connected">Connected to device %1$s</string>
 </resources>

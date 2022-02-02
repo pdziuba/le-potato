@@ -50,7 +50,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_MANUFACTURER_NAME,
                 BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
             )
             while (!service.addCharacteristic(characteristic));
         }
@@ -58,7 +58,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_MODEL_NUMBER,
                 BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
             )
             while (!service.addCharacteristic(characteristic));
         }
@@ -66,7 +66,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_SERIAL_NUMBER,
                 BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
             )
             while (!service.addCharacteristic(characteristic));
         }
@@ -74,7 +74,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_PNP_ID,
                 BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ
+                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
             )
             characteristic.value = CHARACTERISTIC_PNP_ID_VALUE
             while (!service.addCharacteristic(characteristic));
