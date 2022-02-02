@@ -1,8 +1,8 @@
-package com.example.myapplication.gatt
+package com.le.potato.gatt
 
 import android.bluetooth.*
 import android.util.Log
-import com.example.myapplication.BleUuidUtils
+import com.le.potato.BleUuidUtils
 import java.util.*
 
 class GattService : AbstractGattServiceHandler() {

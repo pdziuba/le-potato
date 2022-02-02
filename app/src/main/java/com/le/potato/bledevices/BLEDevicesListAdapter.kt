@@ -1,4 +1,4 @@
-package com.example.myapplication.bledevices
+package com.le.potato.bledevices
 
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.*
@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.example.myapplication.R
+import com.le.potato.R
 
 import android.widget.TextView
 

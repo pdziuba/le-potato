@@ -1,7 +1,7 @@
-package com.example.myapplication.gatt
+package com.le.potato.gatt
 
 import android.bluetooth.*
-import com.example.myapplication.BleUuidUtils
+import com.le.potato.BleUuidUtils
 import java.nio.charset.StandardCharsets
 import java.util.*
 

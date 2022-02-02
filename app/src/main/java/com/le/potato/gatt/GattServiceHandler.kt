@@ -1,4 +1,4 @@
-package com.example.myapplication.gatt
+package com.le.potato.gatt
 
 import android.bluetooth.*
 

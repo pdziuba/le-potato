@@ -1,6 +1,6 @@
-package com.example.myapplication
+package com.le.potato
 
-import com.example.myapplication.gatt.*
+import com.le.potato.gatt.*
 import kotlin.collections.ArrayList
 
 abstract class HidPeripheral protected constructor(

@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.le.potato
 
 import android.Manifest.permission.*
 import android.bluetooth.BluetoothDevice

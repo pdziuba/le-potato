@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.le.potato
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -17,7 +17,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.example.myapplication.bledevices.BLEDevicesListAdapter
+import com.le.potato.bledevices.BLEDevicesListAdapter
 
 
 class BluetoothStatusActivity : AppCompatActivity(),

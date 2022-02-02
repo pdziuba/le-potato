@@ -1,4 +1,4 @@
-package com.example.myapplication
+package com.le.potato
 
 import android.app.Service
 import android.bluetooth.*
@@ -12,7 +12,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
-import com.example.myapplication.gatt.GattServiceHandler
+import com.le.potato.gatt.GattServiceHandler
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
