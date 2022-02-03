@@ -159,6 +159,7 @@ class HIDService(
                 0,
                 CHARACTERISTIC_HID_INFORMATION_VALUE
             )
+            return true
         } else if (BleUuidUtils.matches(CHARACTERISTIC_REPORT_MAP, characteristicUuid)) {
             //todo: handle MTU
             if (offset == 0) {
@@ -191,6 +192,7 @@ class HIDService(
                     )
                 }
             }
+            return true
         } else if (BleUuidUtils.matches(CHARACTERISTIC_HID_CONTROL_POINT, characteristicUuid)) {
             gattServer.sendResponse(
                 device,
@@ -199,6 +201,7 @@ class HIDService(
                 0,
                 byteArrayOf(0)
             )
+            return true
         } else if (BleUuidUtils.matches(CHARACTERISTIC_REPORT, characteristicUuid)) {
             gattServer.sendResponse(
                 device,
@@ -207,6 +210,7 @@ class HIDService(
                 0,
                 emptyBytes
             )
+            return true
         }
         return false
     }

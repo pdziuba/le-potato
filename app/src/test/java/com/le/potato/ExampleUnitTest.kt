@@ -9,9 +9,12 @@ import org.junit.Assert.*
  *
  * See [testing documentation](http://d.android.com/tools/testing).
  */
+fun ByteArray.toHexString() = joinToString(",") { "%02x".format(it) }
+
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+        val r = KeyboardPeripheral.reportMap
+        println(r.toHexString())
     }
 }
