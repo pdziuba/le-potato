@@ -118,26 +118,8 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
-        // todo: simplify this
-        Log.d(tag, "Received event ${event.toString()} with keycode $keyCode")
-        val keyCodeUS: Int = KeyboardPeripheral.keyCode(event?.unicodeChar?.toChar().toString()).toInt()
         if (event?.action == KeyEvent.ACTION_DOWN) {
-            if (keyCodeUS == 0) {
-                Log.e(tag, "Kurwa mać")
-                return false
-            }
-            var modifier = 0
-
-            if (event.isAltPressed) {
-                modifier = modifier or KeyboardPeripheral.MODIFIER_KEY_ALT
-            }
-            if (event.isShiftPressed) {
-                modifier = modifier or KeyboardPeripheral.MODIFIER_KEY_SHIFT
-            }
-            if (event.isCtrlPressed) {
-                modifier = modifier or KeyboardPeripheral.MODIFIER_KEY_CTRL
-            }
-            keyboardPeripheral?.sendKeyDown(modifier.toByte(), keyCodeUS.toByte())
+            keyboardPeripheral?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
         } else {
             keyboardPeripheral?.sendKeyUp()
         }

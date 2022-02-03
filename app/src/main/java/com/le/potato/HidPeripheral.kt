@@ -6,12 +6,11 @@ import kotlin.collections.ArrayList
 abstract class HidPeripheral protected constructor(
     needInputReport: Boolean,
     needOutputReport: Boolean,
-    needFeatureReport: Boolean
+    needFeatureReport: Boolean,
+    val reportMap: ByteArray
 ) {
     private var hidService: HIDService? = null
     val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
-
-    abstract val reportMap: ByteArray
 
     protected fun addInputReport(inputReport: ByteArray?) {
         hidService?.addInputReport(inputReport)
