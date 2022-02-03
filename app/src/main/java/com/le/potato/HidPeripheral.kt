@@ -86,6 +86,7 @@ abstract class HidPeripheral protected constructor(
             return (0x74 or size).toByte()
         }
 
+        @JvmStatic
         protected fun REPORT_ID(size: Int): Byte {
             return (0x84 or size).toByte()
         }

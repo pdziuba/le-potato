@@ -8,14 +8,15 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
 
     fun sendKeyDown(isCtrl: Boolean, isShift: Boolean, isAlt: Boolean, keyCode: Int) {
         if (!eventKeycodeToReportMap.containsKey(keyCode)) {
-            Log.i(TAG,"Unknown keycode $keyCode")
+            Log.i(TAG, "Unknown keycode $keyCode")
             return
         }
-        val report = ByteArray(8)
+        val report = ByteArray(9)
         var modifier = MODIFIER_KEY_NONE
         if (isCtrl) modifier = modifier or MODIFIER_KEY_CTRL
         if (isShift) modifier = modifier or MODIFIER_KEY_SHIFT
         if (isAlt) modifier = modifier or MODIFIER_KEY_ALT
+        report[0] = 0x01
         report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier.toByte()
         report[KEY_PACKET_KEY_INDEX] = eventKeycodeToReportMap[keyCode]!!.toByte()
         addInputReport(report)
@@ -25,7 +26,62 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
      * Send Key Up Event
      */
     fun sendKeyUp() {
-        addInputReport(EMPTY_REPORT)
+        addInputReport(EMPTY_KEYBOARD_REPORT)
+    }
+
+    private val lastSent = ByteArray(4)
+
+    /**
+     * Move the mouse pointer
+     *
+     * @param dx delta X (-127 .. +127)
+     * @param dy delta Y (-127 .. +127)
+     * @param wheel wheel (-127 .. +127)
+     * @param leftButton true : button down
+     * @param rightButton true : button down
+     * @param middleButton true : button down
+     */
+    fun movePointer(dx: Int, dy: Int, wheel: Int, leftButton: Boolean, rightButton: Boolean, middleButton: Boolean) {
+        var dx = dx
+        var dy = dy
+        var wheel = wheel
+        if (dx > 127) dx = 127
+        if (dx < -127) dx = -127
+        if (dy > 127) dy = 127
+        if (dy < -127) dy = -127
+        if (wheel > 127) wheel = 127
+        if (wheel < -127) wheel = -127
+        var button = 0
+        if (leftButton) {
+            button = button or 1
+        }
+        if (rightButton) {
+            button = button or 2
+        }
+        if (middleButton) {
+            button = button or 4
+        }
+        val report = ByteArray(5)
+        report[1] = (button and 7).toByte()
+        report[2] = dx.toByte()
+        report[3] = dy.toByte()
+        report[4] = wheel.toByte()
+
+        var hasNonZero = false
+        for (v in lastSent + report) {
+            if (v != (0).toByte()){
+                hasNonZero = true
+                break
+            }
+        }
+        if (!hasNonZero) return
+
+        report[0] = 2 // report ID
+        lastSent[0] = report[1]
+        lastSent[1] = report[2]
+        lastSent[2] = report[3]
+        lastSent[3] = report[4]
+        addInputReport(report)
     }
 
     override fun onOutputReport(outputReport: ByteArray?) {
@@ -119,16 +175,16 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
             //LEFT ARROW to 0x2E,
             //DOWN ARROW to 0x2E,
             //UP to 0x2E,
-
-
         )
+
         /**
          * Characteristic Data(Report Map)
          */
-        val reportMap = byteArrayOf(
+        private val keyboardReportMap = byteArrayOf(
             USAGE_PAGE(1), 0x01,  // Generic Desktop Ctrls
             USAGE(1), 0x06,  // Keyboard
             COLLECTION(1), 0x01,  // Application
+            REPORT_ID(1), 0x01,
             USAGE_PAGE(1), 0x07,  //   Kbrd/Keypad
             USAGE_MINIMUM(1), 0xE0.toByte(),
             USAGE_MAXIMUM(1), 0xE7.toByte(),
@@ -159,9 +215,39 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
             INPUT(1), 0x00,  //   Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position
             END_COLLECTION(0)
         )
-
-        private const val KEY_PACKET_MODIFIER_KEY_INDEX = 0
-        private const val KEY_PACKET_KEY_INDEX = 2
-        private val EMPTY_REPORT = ByteArray(8)
+        private val mouseReportMap = byteArrayOf(
+            USAGE_PAGE(1), 0x01,  // Generic Desktop
+            USAGE(1), 0x02,  // Mouse
+            COLLECTION(1), 0x01,  // Application
+            REPORT_ID(1), 0x02,
+            USAGE(1), 0x01,  //  Pointer
+            COLLECTION(1), 0x00,  //  Physical
+            USAGE_PAGE(1), 0x09,  //   Buttons
+            USAGE_MINIMUM(1), 0x01,
+            USAGE_MAXIMUM(1), 0x03,
+            LOGICAL_MINIMUM(1), 0x00,
+            LOGICAL_MAXIMUM(1), 0x01,
+            REPORT_COUNT(1), 0x03,  //   3 bits (Buttons)
+            REPORT_SIZE(1), 0x01,
+            INPUT(1), 0x02,  //   Data, Variable, Absolute
+            REPORT_COUNT(1), 0x01,  //   5 bits (Padding)
+            REPORT_SIZE(1), 0x05,
+            INPUT(1), 0x01,  //   Constant
+            USAGE_PAGE(1), 0x01,  //   Generic Desktop
+            USAGE(1), 0x30,  //   X
+            USAGE(1), 0x31,  //   Y
+            USAGE(1), 0x38,  //   Wheel
+            LOGICAL_MINIMUM(1), 0x81.toByte(),  //   -127
+            LOGICAL_MAXIMUM(1), 0x7f,  //   127
+            REPORT_SIZE(1), 0x08,  //   Three bytes
+            REPORT_COUNT(1), 0x03,
+            INPUT(1), 0x06,  //   Data, Variable, Relative
+            END_COLLECTION(0),
+            END_COLLECTION(0)
+        )
+        val reportMap = keyboardReportMap + mouseReportMap
+        private const val KEY_PACKET_MODIFIER_KEY_INDEX = 1
+        private const val KEY_PACKET_KEY_INDEX = 3
+        private val EMPTY_KEYBOARD_REPORT = byteArrayOf(1, 0, 0, 0, 0, 0, 0, 0, 0)
     }
 }
