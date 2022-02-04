@@ -4,7 +4,7 @@ import android.util.Log
 import android.view.KeyEvent
 import java.util.*
 
-class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
+class KeyboardWithPointer : HidPeripheral(true, true, false, reportMap, 2) {
 
     fun sendKeyDown(isCtrl: Boolean, isShift: Boolean, isAlt: Boolean, keyCode: Int) {
         if (!eventKeycodeToReportMap.containsKey(keyCode)) {
@@ -74,7 +74,7 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
     }
 
     companion object {
-        private val TAG = KeyboardPeripheral::class.java.simpleName
+        private val TAG = KeyboardWithPointer::class.java.simpleName
         const val MODIFIER_KEY_NONE = 0
         const val MODIFIER_KEY_CTRL = 1
         const val MODIFIER_KEY_SHIFT = 2

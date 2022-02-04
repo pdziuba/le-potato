@@ -1,6 +1,9 @@
 package com.le.potato.gatt
 
 import android.bluetooth.*
+import com.le.potato.BleUuidUtils
+import java.lang.IllegalStateException
+import java.util.*
 
 interface GattServiceHandler {
     fun setup(): BluetoothGattService?
@@ -45,6 +48,18 @@ interface GattServiceHandler {
 abstract class AbstractGattServiceHandler: GattServiceHandler {
     override fun pollInputReportQueue(): Pair<BluetoothGattCharacteristic?, ByteArray?> {
         return Pair(null, null)
+    }
+
+    protected fun addCharacteristic(service: BluetoothGattService, characteristic: BluetoothGattCharacteristic) {
+        var tries = 0
+        var success = false
+        while (!success && tries < 3) {
+            success = service.addCharacteristic(characteristic)
+            tries += 1
+        }
+        if (!success) {
+            throw IllegalStateException("Failed to add characteristic ${characteristic.uuid} to service ${service.uuid}")
+        }
     }
 
     override fun addInputReport(reportId: Int, inputReport: ByteArray?) {}
@@ -93,5 +108,9 @@ abstract class AbstractGattServiceHandler: GattServiceHandler {
         gattServer: BluetoothGattServer
     ): Boolean {
         return false
+    }
+
+    companion object {
+        val DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION: UUID = BleUuidUtils.fromShortValue(0x2902)
     }
 }

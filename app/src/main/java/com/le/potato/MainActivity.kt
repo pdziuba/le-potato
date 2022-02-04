@@ -29,7 +29,7 @@ import kotlin.math.max
 class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
     private val tag = "MainActivity"
     private var bleService: BLEService? = null
-    private var peripheral: KeyboardPeripheral? = null
+    private var keyboardWithPointer: KeyboardWithPointer? = null
     private var requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             if (!it) {
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
             val binder = _binder as BLEService.LocalBinder
             val service = binder.getService()
-            peripheral = service.keyboard
+            keyboardWithPointer = service.keyboard
             service.deviceConnectedListener = this@MainActivity
             bleService = service
             val devices = service.devices
@@ -51,7 +51,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
 
         override fun onServiceDisconnected(p0: ComponentName?) {
-            peripheral = null
+            keyboardWithPointer = null
             bleService?.deviceConnectedListener = null
         }
     }
@@ -65,7 +65,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View?, motionEvent: MotionEvent?): Boolean {
-            val mouse = peripheral
+            val mouse = keyboardWithPointer
             if (motionEvent == null || mouse == null || bleService?.devices?.isEmpty() == true) {
                 return false
             }
@@ -153,7 +153,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         super.onDestroy()
         bleService?.deviceConnectedListener = null
         unbindService(serviceConnection)
-        peripheral = null
+        keyboardWithPointer = null
     }
 
     private fun askForPermissions() {
@@ -189,9 +189,9 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
         if (event?.action == KeyEvent.ACTION_DOWN) {
-            peripheral?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
+            keyboardWithPointer?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
         } else {
-            peripheral?.sendKeyUp()
+            keyboardWithPointer?.sendKeyUp()
         }
         return true
     }

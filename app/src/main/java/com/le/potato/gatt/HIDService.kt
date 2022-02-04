@@ -1,6 +1,7 @@
 package com.le.potato.gatt
 
 import android.bluetooth.*
+import android.bluetooth.BluetoothGattCharacteristic.*
 import android.util.Log
 import com.le.potato.BleUuidUtils
 import java.util.*
@@ -30,7 +31,6 @@ class HIDService(
         val CHARACTERISTIC_PROTOCOL_MODE: UUID = BleUuidUtils.fromShortValue(0x2A4E)
 
         val DESCRIPTOR_REPORT_REFERENCE: UUID = BleUuidUtils.fromShortValue(0x2908)
-        val DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION: UUID = BleUuidUtils.fromShortValue(0x2902)
 
         val CHARACTERISTIC_HID_INFORMATION_VALUE = byteArrayOf(0x11, 0x01, 0x00, 0x03)
     }
@@ -51,45 +51,39 @@ class HIDService(
         gattService = service
 
         // HID Information
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_HID_INFORMATION,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            while (!service.addCharacteristic(characteristic));
-        }
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_HID_INFORMATION,
+            PROPERTY_READ,
+            PERMISSION_READ_ENCRYPTED
+        ))
 
         // Report Map
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_REPORT_MAP,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            while (!service.addCharacteristic(characteristic));
-        }
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_REPORT_MAP,
+            PROPERTY_READ,
+            PERMISSION_READ_ENCRYPTED
+        ))
 
         // Protocol Mode
         run {
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_PROTOCOL_MODE,
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED or BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+                PROPERTY_READ or PROPERTY_WRITE_NO_RESPONSE,
+                PERMISSION_READ_ENCRYPTED or PERMISSION_WRITE_ENCRYPTED
             )
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-            while (!service.addCharacteristic(characteristic));
+            characteristic.writeType = WRITE_TYPE_NO_RESPONSE
+            addCharacteristic(service, characteristic)
         }
 
         // HID Control Point
         run {
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_HID_CONTROL_POINT,
-                BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+                PROPERTY_WRITE_NO_RESPONSE,
+                PERMISSION_WRITE_ENCRYPTED
             )
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-            while (!service.addCharacteristic(characteristic));
+            characteristic.writeType = WRITE_TYPE_NO_RESPONSE
+            addCharacteristic(service, characteristic)
         }
 
         // Input Report
@@ -97,13 +91,13 @@ class HIDService(
             for (reportId in 1..reportTypesCount) {
                 val characteristic = BluetoothGattCharacteristic(
                     CHARACTERISTIC_REPORT,
-                    BluetoothGattCharacteristic.PROPERTY_NOTIFY or BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE,
-                    BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED or BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+                    PROPERTY_NOTIFY or PROPERTY_READ or PROPERTY_WRITE,
+                    PERMISSION_READ_ENCRYPTED or PERMISSION_WRITE_ENCRYPTED
                 )
                 val clientCharacteristicConfigurationDescriptor = BluetoothGattDescriptor(
                     DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
                     BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED or BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED
-                ) //  | BluetoothGattDescriptor.PERMISSION_WRITE
+                )
                 clientCharacteristicConfigurationDescriptor.value =
                     BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 characteristic.addDescriptor(clientCharacteristicConfigurationDescriptor)
@@ -114,7 +108,7 @@ class HIDService(
                 )
                 reportReferenceDescriptor.value = byteArrayOf(reportId.toByte(), 1)
                 characteristic.addDescriptor(reportReferenceDescriptor)
-                while (!service.addCharacteristic(characteristic));
+                addCharacteristic(service, characteristic)
                 reportIdMap[reportId] = characteristic
             }
         }
@@ -123,31 +117,31 @@ class HIDService(
         if (needOutputReport) {
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_REPORT,
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED or BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+                PROPERTY_READ or PROPERTY_WRITE or PROPERTY_WRITE_NO_RESPONSE,
+                PERMISSION_READ_ENCRYPTED or PERMISSION_WRITE_ENCRYPTED
             )
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            characteristic.writeType = WRITE_TYPE_NO_RESPONSE
             val descriptor = BluetoothGattDescriptor(
                 DESCRIPTOR_REPORT_REFERENCE,
                 BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED or BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED
             )
             characteristic.addDescriptor(descriptor)
-            while (!service.addCharacteristic(characteristic));
+            addCharacteristic(service, characteristic)
         }
 
         // Feature Report
         if (needFeatureReport) {
             val characteristic = BluetoothGattCharacteristic(
                 CHARACTERISTIC_REPORT,
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED or BluetoothGattCharacteristic.PERMISSION_WRITE_ENCRYPTED
+                PROPERTY_READ or PROPERTY_WRITE,
+                PERMISSION_READ_ENCRYPTED or PERMISSION_WRITE_ENCRYPTED
             )
             val descriptor = BluetoothGattDescriptor(
                 DESCRIPTOR_REPORT_REFERENCE,
                 BluetoothGattDescriptor.PERMISSION_READ_ENCRYPTED or BluetoothGattDescriptor.PERMISSION_WRITE_ENCRYPTED
             )
             characteristic.addDescriptor(descriptor)
-            while (!service.addCharacteristic(characteristic));
+            addCharacteristic(service, characteristic)
         }
         return service
     }
@@ -168,7 +162,7 @@ class HIDService(
         gattServer: BluetoothGattServer
     ): Boolean {
         val characteristicUuid = characteristic.uuid
-        if (BleUuidUtils.matches(CHARACTERISTIC_HID_INFORMATION, characteristicUuid)) {
+        if (CHARACTERISTIC_HID_INFORMATION == characteristicUuid) {
             gattServer.sendResponse(
                 device,
                 requestId,
@@ -177,7 +171,7 @@ class HIDService(
                 CHARACTERISTIC_HID_INFORMATION_VALUE
             )
             return true
-        } else if (BleUuidUtils.matches(CHARACTERISTIC_REPORT_MAP, characteristicUuid)) {
+        } else if (CHARACTERISTIC_REPORT_MAP == characteristicUuid) {
             //todo: handle MTU
             if (offset == 0) {
                 gattServer.sendResponse(
@@ -210,7 +204,7 @@ class HIDService(
                 }
             }
             return true
-        } else if (BleUuidUtils.matches(CHARACTERISTIC_HID_CONTROL_POINT, characteristicUuid)) {
+        } else if (CHARACTERISTIC_HID_CONTROL_POINT == characteristicUuid) {
             gattServer.sendResponse(
                 device,
                 requestId,
@@ -219,7 +213,7 @@ class HIDService(
                 byteArrayOf(0)
             )
             return true
-        } else if (BleUuidUtils.matches(CHARACTERISTIC_REPORT, characteristicUuid)) {
+        } else if (CHARACTERISTIC_REPORT == characteristicUuid) {
             gattServer.sendResponse(
                 device,
                 requestId,
@@ -242,8 +236,8 @@ class HIDService(
         value: ByteArray,
         gattServer: BluetoothGattServer
     ): Boolean {
-        if (BleUuidUtils.matches(CHARACTERISTIC_REPORT, characteristic.uuid) && responseNeeded) {
-            if (characteristic.properties == BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) {
+        if (CHARACTERISTIC_REPORT == characteristic.uuid && responseNeeded) {
+            if (characteristic.properties == PROPERTY_READ or PROPERTY_WRITE or PROPERTY_WRITE_NO_RESPONSE) {
                 //                        onOutputReport(value)
                 gattServer.sendResponse(
                     device,
@@ -265,9 +259,9 @@ class HIDService(
         descriptor: BluetoothGattDescriptor,
         gattServer: BluetoothGattServer
     ): Boolean {
-        if (BleUuidUtils.matches(DESCRIPTOR_REPORT_REFERENCE, descriptor.uuid)) {
+        if (DESCRIPTOR_REPORT_REFERENCE == descriptor.uuid) {
             when (descriptor.characteristic.properties) {
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_NOTIFY -> {
+                PROPERTY_READ or PROPERTY_WRITE or PROPERTY_NOTIFY -> {
                     // Android API sucks like a vacuum cleaner. In SDK <=23 descriptors have instanceId==0 and multiple characteristics with same UUID are not handled correctly :(
 
                     // Input Report
@@ -279,7 +273,7 @@ class HIDService(
                         descriptor.value
                     )
                 }
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE or BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE -> {
+                PROPERTY_READ or PROPERTY_WRITE or PROPERTY_WRITE_NO_RESPONSE -> {
                     // Output Report
                     gattServer.sendResponse(
                         device,
@@ -289,7 +283,7 @@ class HIDService(
                         byteArrayOf(0, 2)
                     )
                 }
-                BluetoothGattCharacteristic.PROPERTY_READ or BluetoothGattCharacteristic.PROPERTY_WRITE -> {
+                PROPERTY_READ or PROPERTY_WRITE -> {
                     // Feature Report
                     gattServer.sendResponse(
                         device,
@@ -309,11 +303,7 @@ class HIDService(
                     )
                 }
             }
-        } else if (BleUuidUtils.matches(
-                DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
-                descriptor.uuid
-            )
-        ) {
+        } else if (DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION == descriptor.uuid ) {
             gattServer.sendResponse(
                 device,
                 requestId,
@@ -349,11 +339,7 @@ class HIDService(
     ): Boolean {
         descriptor.value = value
         if (responseNeeded) {
-            if (BleUuidUtils.matches(
-                    DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
-                    descriptor.uuid
-                )
-            ) {
+            if (DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION == descriptor.uuid) {
                 gattServer.sendResponse(
                     device,
                     requestId,

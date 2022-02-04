@@ -46,39 +46,31 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
             SERVICE_DEVICE_INFORMATION,
             BluetoothGattService.SERVICE_TYPE_PRIMARY
         )
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_MANUFACTURER_NAME,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            while (!service.addCharacteristic(characteristic));
-        }
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_MODEL_NUMBER,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            while (!service.addCharacteristic(characteristic));
-        }
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_SERIAL_NUMBER,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            while (!service.addCharacteristic(characteristic));
-        }
-        run {
-            val characteristic = BluetoothGattCharacteristic(
-                CHARACTERISTIC_PNP_ID,
-                BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
-            )
-            characteristic.value = CHARACTERISTIC_PNP_ID_VALUE
-            while (!service.addCharacteristic(characteristic));
-        }
+
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_MANUFACTURER_NAME,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+        ))
+
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_MODEL_NUMBER,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+        ))
+
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_SERIAL_NUMBER,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+        ))
+
+        addCharacteristic(service, BluetoothGattCharacteristic(
+            CHARACTERISTIC_PNP_ID,
+            BluetoothGattCharacteristic.PROPERTY_READ,
+            BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
+        ))
+
         return service
     }
 
@@ -89,10 +81,8 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
         characteristic: BluetoothGattCharacteristic,
         gattServer: BluetoothGattServer
     ): Boolean {
-        val characteristicUuid = characteristic.uuid
-
-        when {
-            BleUuidUtils.matches(CHARACTERISTIC_MANUFACTURER_NAME, characteristicUuid) -> {
+        when(characteristic.uuid) {
+            CHARACTERISTIC_MANUFACTURER_NAME -> {
                 gattServer.sendResponse(
                     device,
                     requestId,
@@ -104,7 +94,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
                 )
                 return true
             }
-            BleUuidUtils.matches(CHARACTERISTIC_SERIAL_NUMBER, characteristicUuid) -> {
+            CHARACTERISTIC_SERIAL_NUMBER -> {
                 gattServer.sendResponse(
                     device,
                     requestId,
@@ -116,7 +106,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
                 )
                 return true
             }
-            BleUuidUtils.matches(CHARACTERISTIC_MODEL_NUMBER, characteristicUuid) -> {
+            CHARACTERISTIC_MODEL_NUMBER -> {
                 gattServer.sendResponse(
                     device,
                     requestId,
@@ -128,7 +118,7 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
                 )
                 return true
             }
-            BleUuidUtils.matches(CHARACTERISTIC_PNP_ID, characteristicUuid) -> {
+            CHARACTERISTIC_PNP_ID -> {
                 gattServer.sendResponse(
                     device,
                     requestId,

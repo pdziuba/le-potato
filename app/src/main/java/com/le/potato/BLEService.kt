@@ -55,7 +55,9 @@ class BLEService : Service() {
     private var bluetoothLeScanner: BluetoothLeScanner? = null
     private var gattServer: BluetoothGattServer? = null
     private val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
-    val keyboard = KeyboardPeripheral()
+
+    // todo: some sort of DI to inject gattService handlers and move keyboard out of here
+    val keyboard = KeyboardWithPointer()
     var deviceDetectedListener: DeviceDetectedListener? = null
     var deviceConnectedListener: DeviceConnectedListener? = null
 
@@ -380,10 +382,7 @@ class BLEService : Service() {
         synchronized(connectedDevicesMap) {
             connectedDevicesMap.put(device.address, device)
         }
-        handler?.post {
-            bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
-            isAdvertising = false
-        }
+        stopAdvertising()
         deviceConnectedListener?.onDeviceConnected(device)
     }
 
@@ -400,8 +399,12 @@ class BLEService : Service() {
             } else {
                 throw java.lang.IllegalStateException("Cannot obtain semaphore to add gatt service")
             }
+            if (!serviceAdded) {
+                throw java.lang.IllegalStateException("Cannot add gatt service ${service.uuid}")
+            } else {
+                Log.d(tag, "Service: ${service.uuid} added.")
+            }
         }
-        Log.d(tag, "Service: ${service.uuid} added.")
     }
 
     private fun startAdvertising() {
@@ -459,18 +462,23 @@ class BLEService : Service() {
         handler?.post {
             try {
                 bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
+                isAdvertising = false
             } catch (ignored: IllegalStateException) {
                 // BT Adapter is not turned ON
             }
+        }
+    }
+
+    private fun closeGattServer() {
+        val gattServer = gattServer ?: return
+        handler?.post {
             try {
-                if (gattServer != null) {
-                    val devices = devices
-                    for (device in devices) {
-                        gattServer!!.cancelConnection(device)
-                    }
-                    gattServer!!.close()
-                    gattServer = null
+                for (device in devices) {
+                    gattServer.cancelConnection(device)
                 }
+                gattServer.close()
+                this.gattServer = null
+
             } catch (ignored: IllegalStateException) {
                 // BT Adapter is not turned ON
             }
@@ -588,5 +596,8 @@ class BLEService : Service() {
         stopAdvertising()
         stopScanning()
         unregisterReceiver(btReceiver)
+        closeGattServer()
+
     }
+
 }

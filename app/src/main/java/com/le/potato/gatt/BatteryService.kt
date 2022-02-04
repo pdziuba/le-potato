@@ -21,13 +21,13 @@ class BatteryService: AbstractGattServiceHandler() {
             BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
         )
         val clientCharacteristicConfigurationDescriptor = BluetoothGattDescriptor(
-            HIDService.DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
+            DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
             BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
         )
         clientCharacteristicConfigurationDescriptor.value =
             BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         characteristic.addDescriptor(clientCharacteristicConfigurationDescriptor)
-        while (!service.addCharacteristic(characteristic));
+        addCharacteristic(service, characteristic)
         return service
     }
 
@@ -38,7 +38,7 @@ class BatteryService: AbstractGattServiceHandler() {
         characteristic: BluetoothGattCharacteristic,
         gattServer: BluetoothGattServer
     ): Boolean {
-        if (BleUuidUtils.matches(CHARACTERISTIC_BATTERY_LEVEL, characteristic.uuid)) {
+        if (CHARACTERISTIC_BATTERY_LEVEL == characteristic.uuid) {
             gattServer.sendResponse(
                 device,
                 requestId,
