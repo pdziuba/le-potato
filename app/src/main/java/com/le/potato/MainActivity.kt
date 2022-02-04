@@ -1,6 +1,7 @@
 package com.le.potato
 
 import android.Manifest.permission.*
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
@@ -13,6 +14,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
@@ -21,12 +23,13 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import kotlin.math.max
 
 
 class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
     private val tag = "MainActivity"
     private var bleService: BLEService? = null
-    private var keyboardPeripheral: KeyboardPeripheral? = null
+    private var peripheral: KeyboardPeripheral? = null
     private var requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             if (!it) {
@@ -34,11 +37,11 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                 finish()
             }
         }
-    private val connection = object : ServiceConnection {
+    private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
             val binder = _binder as BLEService.LocalBinder
             val service = binder.getService()
-            keyboardPeripheral = service.keyboard
+            peripheral = service.keyboard
             service.deviceConnectedListener = this@MainActivity
             bleService = service
             val devices = service.devices
@@ -48,11 +51,81 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
 
         override fun onServiceDisconnected(p0: ComponentName?) {
-            keyboardPeripheral = null
+            peripheral = null
             bleService?.deviceConnectedListener = null
         }
-
     }
+
+    private val touchListener = object : View.OnTouchListener {
+        var maxPointerCount: Int = 0
+        var X: Float = 0.0F
+        var Y: Float = 0.0F
+        var firstX: Float = 0.0F
+        var firstY: Float = 0.0F
+
+        @SuppressLint("ClickableViewAccessibility")
+        override fun onTouch(view: View?, motionEvent: MotionEvent?): Boolean {
+            val mouse = peripheral
+            if (motionEvent == null || mouse == null || bleService?.devices?.isEmpty() == true) {
+                return false
+            }
+            when (motionEvent.action) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                    maxPointerCount = motionEvent.pointerCount
+                    X = motionEvent.x
+                    Y = motionEvent.y
+                    firstX = X
+                    firstY = Y
+                    return true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    maxPointerCount = max(maxPointerCount, motionEvent.pointerCount)
+                    mouse.movePointer(
+                        (motionEvent.x - X).toInt(),
+                        (motionEvent.y - Y).toInt(),
+                        0,
+                        leftButton = false,
+                        rightButton = false,
+                        middleButton = false
+                    )
+                    X = motionEvent.x
+                    Y = motionEvent.y
+                    return true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                    X = motionEvent.x
+                    Y = motionEvent.y
+                    if ((X - firstX) * (X - firstX) + (Y - firstY) * (Y - firstY) < 20) {
+                        val leftButton = maxPointerCount == 1
+                        val middleButton = maxPointerCount == 2
+                        val rightButton = maxPointerCount > 2
+
+                        mouse.movePointer(
+                            (motionEvent.x - X).toInt(),
+                            (motionEvent.y - Y).toInt(),
+                            0,
+                            leftButton = leftButton,
+                            rightButton = rightButton,
+                            middleButton = middleButton
+                        )
+                        mouse.movePointer(
+                            (motionEvent.x - X).toInt(),
+                            (motionEvent.y - Y).toInt(),
+                            0,
+                            leftButton = false,
+                            rightButton = false,
+                            middleButton = false
+                        )
+
+                    }
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -64,6 +137,8 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                 imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
             }
         }
+        findViewById<TextView>(R.id.touchpad).setOnTouchListener(touchListener)
+
         askForPermissions()
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         if (btManager.adapter?.isEnabled == false) {
@@ -71,25 +146,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
         val intent = Intent(this, BLEService::class.java)
 
-        bindService(intent, connection, BIND_AUTO_CREATE)
+        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         bleService?.deviceConnectedListener = null
-        unbindService(connection)
-        keyboardPeripheral = null
+        unbindService(serviceConnection)
+        peripheral = null
     }
 
     private fun askForPermissions() {
-        if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PERMISSION_DENIED) {
-            requestPermissionsLauncher.launch(ACCESS_FINE_LOCATION)
-        }
-        if (ContextCompat.checkSelfPermission(this, ACCESS_BACKGROUND_LOCATION) == PERMISSION_DENIED) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                requestPermissionsLauncher.launch(ACCESS_BACKGROUND_LOCATION)
-            }
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
                 requestPermissionsLauncher.launch(BLUETOOTH_ADVERTISE)
@@ -100,6 +167,9 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         } else {
             if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADMIN) == PERMISSION_DENIED) {
                 requestPermissionsLauncher.launch(BLUETOOTH_ADMIN)
+            }
+            if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PERMISSION_DENIED) {
+                requestPermissionsLauncher.launch(ACCESS_FINE_LOCATION)
             }
         }
     }
@@ -119,12 +189,13 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
         if (event?.action == KeyEvent.ACTION_DOWN) {
-            keyboardPeripheral?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
+            peripheral?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
         } else {
-            keyboardPeripheral?.sendKeyUp()
+            peripheral?.sendKeyUp()
         }
         return true
     }
+
 
     override fun onDeviceConnected(device: BluetoothDevice) {
         runOnUiThread {

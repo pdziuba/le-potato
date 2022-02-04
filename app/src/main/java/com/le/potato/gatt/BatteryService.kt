@@ -21,7 +21,7 @@ class BatteryService: AbstractGattServiceHandler() {
             BluetoothGattCharacteristic.PERMISSION_READ_ENCRYPTED
         )
         val clientCharacteristicConfigurationDescriptor = BluetoothGattDescriptor(
-            GattService.DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
+            HIDService.DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION,
             BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE
         )
         clientCharacteristicConfigurationDescriptor.value =

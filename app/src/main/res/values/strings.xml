@@ -11,6 +11,6 @@
     <string name="visible_ble_devices">Nearby devices:</string>
     <string name="scan_for_devices">Scan for devices</string>
     <string name="status_idle">Waiting for connection</string>
-    <string name="status_connecting">Connecting...</string>
+    <string name="status_connecting">Connecting…</string>
     <string name="status_connected">Connected to device %1$s</string>
 </resources>

@@ -14,7 +14,10 @@ fun ByteArray.toHexString() = joinToString(",") { "%02x".format(it) }
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        val r = KeyboardPeripheral.reportMap
-        println(r.toHexString())
+        val reportTypesCount: Int = 1
+        for (reportId in 1..reportTypesCount) {
+            println("Reportid = $reportId")
+        }
+
     }
 }

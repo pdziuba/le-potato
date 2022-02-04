@@ -11,36 +11,22 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
             Log.i(TAG, "Unknown keycode $keyCode")
             return
         }
-        val report = ByteArray(9)
+        val report = ByteArray(8)
         var modifier = MODIFIER_KEY_NONE
         if (isCtrl) modifier = modifier or MODIFIER_KEY_CTRL
         if (isShift) modifier = modifier or MODIFIER_KEY_SHIFT
         if (isAlt) modifier = modifier or MODIFIER_KEY_ALT
-        report[0] = 0x01
         report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier.toByte()
         report[KEY_PACKET_KEY_INDEX] = eventKeycodeToReportMap[keyCode]!!.toByte()
-        addInputReport(report)
+        addInputReport(1, report)
     }
 
-    /**
-     * Send Key Up Event
-     */
     fun sendKeyUp() {
-        addInputReport(EMPTY_KEYBOARD_REPORT)
+        addInputReport(1, EMPTY_KEYBOARD_REPORT)
     }
 
     private val lastSent = ByteArray(4)
 
-    /**
-     * Move the mouse pointer
-     *
-     * @param dx delta X (-127 .. +127)
-     * @param dy delta Y (-127 .. +127)
-     * @param wheel wheel (-127 .. +127)
-     * @param leftButton true : button down
-     * @param rightButton true : button down
-     * @param middleButton true : button down
-     */
     fun movePointer(dx: Int, dy: Int, wheel: Int, leftButton: Boolean, rightButton: Boolean, middleButton: Boolean) {
         var dx = dx
         var dy = dy
@@ -62,10 +48,10 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
             button = button or 4
         }
         val report = ByteArray(5)
-        report[1] = (button and 7).toByte()
-        report[2] = dx.toByte()
-        report[3] = dy.toByte()
-        report[4] = wheel.toByte()
+        report[0] = (button and 7).toByte()
+        report[1] = dx.toByte()
+        report[2] = dy.toByte()
+        report[3] = wheel.toByte()
 
         var hasNonZero = false
         for (v in lastSent + report) {
@@ -76,12 +62,11 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
         }
         if (!hasNonZero) return
 
-        report[0] = 2 // report ID
-        lastSent[0] = report[1]
-        lastSent[1] = report[2]
-        lastSent[2] = report[3]
-        lastSent[3] = report[4]
-        addInputReport(report)
+        lastSent[0] = report[0]
+        lastSent[1] = report[1]
+        lastSent[2] = report[2]
+        lastSent[3] = report[3]
+        addInputReport(2, report)
     }
 
     override fun onOutputReport(outputReport: ByteArray?) {
@@ -246,8 +231,8 @@ class KeyboardPeripheral : HidPeripheral(true, true, false, reportMap) {
             END_COLLECTION(0)
         )
         val reportMap = keyboardReportMap + mouseReportMap
-        private const val KEY_PACKET_MODIFIER_KEY_INDEX = 1
-        private const val KEY_PACKET_KEY_INDEX = 3
-        private val EMPTY_KEYBOARD_REPORT = byteArrayOf(1, 0, 0, 0, 0, 0, 0, 0, 0)
+        private const val KEY_PACKET_MODIFIER_KEY_INDEX = 0
+        private const val KEY_PACKET_KEY_INDEX = 2
+        private val EMPTY_KEYBOARD_REPORT = ByteArray(8)
     }
 }

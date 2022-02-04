@@ -7,10 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Binder
-import android.os.Handler
-import android.os.IBinder
-import android.os.ParcelUuid
+import android.os.*
 import android.util.Log
 import com.le.potato.gatt.GattServiceHandler
 import java.util.*

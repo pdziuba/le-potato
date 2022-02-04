@@ -7,13 +7,13 @@ abstract class HidPeripheral protected constructor(
     needInputReport: Boolean,
     needOutputReport: Boolean,
     needFeatureReport: Boolean,
-    val reportMap: ByteArray
+    reportMap: ByteArray
 ) {
     private var hidService: HIDService? = null
     val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
 
-    protected fun addInputReport(inputReport: ByteArray?) {
-        hidService?.addInputReport(inputReport)
+    protected fun addInputReport(reportId:Int, inputReport: ByteArray?) {
+        hidService?.addInputReport(reportId, inputReport)
     }
 
     protected abstract fun onOutputReport(outputReport: ByteArray?)
@@ -124,10 +124,9 @@ abstract class HidPeripheral protected constructor(
     }
 
     init {
-        gattServiceHandlers.add(GattService())
         gattServiceHandlers.add(BatteryService())
         gattServiceHandlers.add(DeviceInfoService("Samsung", "AmazingKbrd", "123456789"))
-        hidService = HIDService(needInputReport, needOutputReport, needFeatureReport, reportMap)
+        hidService = HIDService(needInputReport, needOutputReport, needFeatureReport, reportMap, 2)
         gattServiceHandlers.add(hidService!!)
     }
 }
