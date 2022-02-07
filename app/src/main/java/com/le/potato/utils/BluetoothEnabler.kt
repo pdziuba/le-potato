@@ -1,4 +1,4 @@
-package com.le.potato
+package com.le.potato.utils
 
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
@@ -8,7 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContract
 
-object BluetoothHelper {
+object BluetoothEnabler {
     class EnableBluetoothContract :
         ActivityResultContract<Unit, Int>() {
 

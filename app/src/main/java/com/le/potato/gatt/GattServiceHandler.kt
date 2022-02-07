@@ -1,7 +1,7 @@
 package com.le.potato.gatt
 
 import android.bluetooth.*
-import com.le.potato.BleUuidUtils
+import com.le.potato.utils.UuidUtils
 import java.lang.IllegalStateException
 import java.util.*
 
@@ -111,6 +111,6 @@ abstract class AbstractGattServiceHandler: GattServiceHandler {
     }
 
     companion object {
-        val DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION: UUID = BleUuidUtils.fromShortValue(0x2902)
+        val DESCRIPTOR_CLIENT_CHARACTERISTIC_CONFIGURATION: UUID = UuidUtils.fromShortValue(0x2902)
     }
 }

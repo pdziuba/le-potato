@@ -3,7 +3,7 @@ package com.le.potato.gatt
 import android.bluetooth.*
 import android.bluetooth.BluetoothGattCharacteristic.*
 import android.util.Log
-import com.le.potato.BleUuidUtils
+import com.le.potato.utils.UuidUtils
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.collections.HashMap
@@ -23,14 +23,14 @@ class HIDService(
     private var gattService: BluetoothGattService? = null
 
     companion object {
-        val SERVICE_BLE_HID: UUID = BleUuidUtils.fromShortValue(0x1812)
-        val CHARACTERISTIC_HID_INFORMATION: UUID = BleUuidUtils.fromShortValue(0x2A4A)
-        val CHARACTERISTIC_REPORT_MAP: UUID = BleUuidUtils.fromShortValue(0x2A4B)
-        val CHARACTERISTIC_HID_CONTROL_POINT: UUID = BleUuidUtils.fromShortValue(0x2A4C)
-        val CHARACTERISTIC_REPORT: UUID = BleUuidUtils.fromShortValue(0x2A4D)
-        val CHARACTERISTIC_PROTOCOL_MODE: UUID = BleUuidUtils.fromShortValue(0x2A4E)
+        val SERVICE_BLE_HID: UUID = UuidUtils.fromShortValue(0x1812)
+        val CHARACTERISTIC_HID_INFORMATION: UUID = UuidUtils.fromShortValue(0x2A4A)
+        val CHARACTERISTIC_REPORT_MAP: UUID = UuidUtils.fromShortValue(0x2A4B)
+        val CHARACTERISTIC_HID_CONTROL_POINT: UUID = UuidUtils.fromShortValue(0x2A4C)
+        val CHARACTERISTIC_REPORT: UUID = UuidUtils.fromShortValue(0x2A4D)
+        val CHARACTERISTIC_PROTOCOL_MODE: UUID = UuidUtils.fromShortValue(0x2A4E)
 
-        val DESCRIPTOR_REPORT_REFERENCE: UUID = BleUuidUtils.fromShortValue(0x2908)
+        val DESCRIPTOR_REPORT_REFERENCE: UUID = UuidUtils.fromShortValue(0x2908)
 
         val CHARACTERISTIC_HID_INFORMATION_VALUE = byteArrayOf(0x11, 0x01, 0x00, 0x03)
     }

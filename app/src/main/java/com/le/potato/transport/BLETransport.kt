@@ -1,77 +1,43 @@
-package com.le.potato
+package com.le.potato.transport
 
-import android.app.Service
 import android.bluetooth.*
-import android.bluetooth.le.*
+import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.*
+import android.os.ParcelUuid
 import android.util.Log
+import com.le.potato.gatt.BatteryService
+import com.le.potato.gatt.DeviceInfoService
 import com.le.potato.gatt.GattServiceHandler
+import com.le.potato.gatt.HIDService
+import com.le.potato.utils.bondStateLabels
+import com.le.potato.utils.connStateLabels
 import java.util.*
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
+const val ADVERTISE_TIMEOUT = 60000L
 
-val connStateLabels: Map<Int, String> = object : HashMap<Int, String>() {
-    init {
-        put(BluetoothProfile.STATE_CONNECTED, "STATE_CONNECTED")
-        put(BluetoothProfile.STATE_DISCONNECTED, "STATE_DISCONNECTED")
-        put(BluetoothProfile.STATE_CONNECTING, "STATE_CONNECTING")
-        put(BluetoothProfile.STATE_DISCONNECTING, "STATE_DISCONNECTING")
-    }
-}
-val bondStateLabels: Map<Int, String> = object : HashMap<Int, String>() {
-    init {
-        put(BluetoothDevice.BOND_NONE, "BOND_NONE")
-        put(BluetoothDevice.BOND_BONDING, "BOND_BONDING")
-        put(BluetoothDevice.BOND_BONDED, "BOND_BONDED")
-    }
-}
-
-interface DeviceDetectedListener {
-    fun onDeviceDetected(device: BluetoothDevice)
-}
-
-interface DeviceConnectedListener {
-    fun onDeviceConnected(device: BluetoothDevice)
-    fun onDeviceConnecting(device: BluetoothDevice)
-    fun onDeviceDisconnected(device: BluetoothDevice)
-}
-
-class BLEService : Service() {
-    private val tag = BLEService::class.java.simpleName
-    private var handler: Handler? = null
-    private val connectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
-    private val detectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
+class BLETransport: AbstractHIDTransport() {
+    private val tag = BLETransport::class.java.simpleName
     private val serviceSemaphore = Semaphore(1)
-
-    private var isAdvertising = false
-    private var isScanning = false
-    private var bluetoothAdapter: BluetoothAdapter? = null
+    private var _isAdvertising = false
+    private var descriptorsRead = false
     private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
-    private var bluetoothLeScanner: BluetoothLeScanner? = null
     private var gattServer: BluetoothGattServer? = null
+    private lateinit var hidService: HIDService
     private val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
+    var advertisingListener: AdvertisingListener? = null
+    val isAdvertising: Boolean
+        get() = _isAdvertising
 
-    // todo: some sort of DI to inject gattService handlers and move keyboard out of here
-    val keyboard = KeyboardWithPointer()
-    var deviceDetectedListener: DeviceDetectedListener? = null
-    var deviceConnectedListener: DeviceConnectedListener? = null
-
-    override fun onCreate() {
-        handler = Handler(applicationContext.mainLooper)
-        val bluetoothManager =
-            applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val bluetoothAdapter = bluetoothManager.adapter
-            ?: throw UnsupportedOperationException("Bluetooth is not available.")
-        while (!bluetoothAdapter.isEnabled) {
-            Log.d(tag, "Waiting for bluetooth adapter to be enabled")
-            Thread.sleep(1000)
-        }
-        this.bluetoothAdapter = bluetoothAdapter
+    override fun init(context: Context, reportMap: ByteArray) {
+        super.init(context, reportMap)
         Log.d(
             tag,
             "isMultipleAdvertisementSupported:" + bluetoothAdapter.isMultipleAdvertisementSupported
@@ -81,41 +47,53 @@ class BLEService : Service() {
         }
         bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
             ?: throw UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.")
-        bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-            ?: throw UnsupportedOperationException("Bluetooth LE Scanning is not supported on this device.")
+
         gattServer = bluetoothManager.openGattServer(applicationContext, GattServerCallback())
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
 
-        gattServiceHandlers.addAll(keyboard.gattServiceHandlers)
+
+        gattServiceHandlers.add(BatteryService())
+        gattServiceHandlers.add(DeviceInfoService("Samsung", "AmazingKbrd", "123456789"))
+        hidService = HIDService(
+            needInputReport = true,
+            needOutputReport = true,
+            needFeatureReport = false,
+            reportMap = reportMap,
+            reportTypesCount = 2
+        )
+        gattServiceHandlers.add(hidService)
+
         for (gattServiceHandler in gattServiceHandlers) {
             val gattService = gattServiceHandler.setup()
             if (gattService != null) {
                 addService(gattService)
             }
         }
-        startReportingNotifications(50)
-        startAdvertising()
+        startReportingNotifications(20)
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
-//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
-//        intentFilter.addAction(BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED)
-//        intentFilter.addAction(BluetoothDevice.ACTION_UUID)
-//        intentFilter.addAction(BluetoothDevice.ACTION_PAIRING_REQUEST)
-//        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
-        registerReceiver(btReceiver, intentFilter)
+        intentFilter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED)
+        context.registerReceiver(btReceiver, intentFilter)
     }
 
     private val btReceiver = object : BroadcastReceiver() {
         //todo: handle turning bluetooth adapter off/on
         override fun onReceive(context: Context?, intent: Intent?) {
-            val bluetoothDevice =
-                intent!!.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
+            if (intent == null) return
+
             when (intent.action) {
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
+                    val bluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
                     if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice != null) {
                         finalizeConnection(bluetoothDevice)
+                    }
+                }
+                BluetoothAdapter.ACTION_SCAN_MODE_CHANGED -> {
+                    val prevMode = intent.getParcelableArrayExtra(BluetoothAdapter.EXTRA_PREVIOUS_SCAN_MODE) as Int?
+                    if (prevMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+                        advertisingListener?.onAdvertiseStopped()
                     }
                 }
                 else -> {
@@ -126,54 +104,42 @@ class BLEService : Service() {
 
     }
 
-    val devices: Set<BluetoothDevice>
-        get() {
-            val deviceSet: MutableSet<BluetoothDevice> = HashSet()
-            synchronized(connectedDevicesMap) { deviceSet.addAll(connectedDevicesMap.values) }
-            return Collections.unmodifiableSet(deviceSet)
+    override fun addInputReport(reportId: Int, report: ByteArray) {
+        hidService.addInputReport(reportId, report)
+    }
+
+    override fun disconnect(device: BluetoothDevice) {
+        synchronized(connectedDevicesMap) {
+            if (connectedDevicesMap.containsKey(device.address)) {
+                gattServer?.cancelConnection(device)
+                connectedDevicesMap.remove(device.address)
+                fireDeviceDisconnectedEvent(device)
+            }
         }
+    }
+
+    override fun deactivate() {
+        stopAdvertising()
+        applicationContext.unregisterReceiver(btReceiver)
+        closeGattServer()
+    }
 
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
             super.onStartSuccess(settingsInEffect)
             Log.i(tag, "Advertising started successfully :)")
             serviceSemaphore.release()
+            advertisingListener?.onAdvertiseStarted()
+            handler.postDelayed( {
+                stopAdvertising()
+            }, ADVERTISE_TIMEOUT)
         }
 
         override fun onStartFailure(errorCode: Int) {
             super.onStartFailure(errorCode)
             Log.e(tag, "Advertising failure: $errorCode")
             serviceSemaphore.release()
-        }
-    }
-
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult?) {
-            super.onScanResult(callbackType, result)
-            if (result != null) {
-                synchronized(detectedDevicesMap) {
-                    detectedDevicesMap.put(result.device.address, result.device)
-                }
-                deviceDetectedListener?.onDeviceDetected(result.device)
-            }
-        }
-
-        override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-            super.onBatchScanResults(results)
-            Log.i(tag, "onBatchScanResults")
-            if (results != null) {
-                for (result in results) {
-                    synchronized(detectedDevicesMap) {
-                        detectedDevicesMap[result.device.address] = result.device
-                    }
-                    deviceDetectedListener?.onDeviceDetected(result.device)
-                }
-            }
-        }
-
-        override fun onScanFailed(errorCode: Int) {
-            super.onScanFailed(errorCode)
-            Log.e(tag, "BLE Scan failed, errorcode = $errorCode")
+            advertisingListener?.onAdvertiseFailure()
         }
     }
 
@@ -201,7 +167,7 @@ class BLEService : Service() {
                     if (device.bondState == BluetoothDevice.BOND_BONDED) {
                         finalizeConnection(device)
                     } else {
-                        deviceConnectedListener?.onDeviceConnecting(device)
+                        fireDeviceConnectingEvent(device)
                     }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
@@ -210,11 +176,11 @@ class BLEService : Service() {
                     synchronized(connectedDevicesMap) {
                         connectedDevicesMap.remove(deviceAddress)
                     }
-                    deviceConnectedListener?.onDeviceDisconnected(device)
-                    startAdvertising()
+                    descriptorsRead = false
+                    fireDeviceDisconnectedEvent(device)
                 }
                 BluetoothProfile.STATE_CONNECTING -> {
-                    deviceConnectedListener?.onDeviceConnecting(device)
+                    fireDeviceConnectingEvent(device)
                 }
                 else -> {}
             }
@@ -232,7 +198,7 @@ class BLEService : Service() {
                 "onCharacteristicReadRequest characteristic: ${characteristic.uuid}, offset: $offset"
             )
             val gattServer = gattServer ?: return
-            handler?.post {
+            handler.post {
                 var handled = false
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onCharacteristicReadRequest(
@@ -275,9 +241,10 @@ class BLEService : Service() {
                 "onDescriptorReadRequest requestId: " + requestId + ", offset: " + offset + ", descriptor: " + descriptor.uuid
             )
             val gattServer = gattServer ?: return
-            handler?.post {
+            handler.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onDescriptorReadRequest(device, requestId, offset, descriptor, gattServer)) {
+                        descriptorsRead = true
                         break
                     }
                 }
@@ -307,7 +274,7 @@ class BLEService : Service() {
                 "onCharacteristicWriteRequest characteristic: ${characteristic.uuid}, value: ${value.contentToString()}"
             )
             val gattServer = gattServer ?: return
-            handler?.post {
+            handler.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onCharacteristicWriteRequest(
                             device,
@@ -349,7 +316,7 @@ class BLEService : Service() {
                 "onDescriptorWriteRequest descriptor: ${descriptor.uuid}, value: ${value.contentToString()}, responseNeeded: $responseNeeded, preparedWrite: $preparedWrite"
             )
             val gattServer = gattServer ?: return
-            handler?.post {
+            handler.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onDescriptorWriteRequest(
                             device,
@@ -383,14 +350,14 @@ class BLEService : Service() {
             connectedDevicesMap.put(device.address, device)
         }
         stopAdvertising()
-        deviceConnectedListener?.onDeviceConnected(device)
+        fireDeviceConnectedEvent(device)
     }
 
     private fun addService(service: BluetoothGattService) {
         var serviceAdded = false
         var tries = 0
 
-        handler?.post {
+        handler.post {
             if (serviceSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 while (!serviceAdded && tries < 3) {
                     serviceAdded = gattServer!!.addService(service)
@@ -407,7 +374,7 @@ class BLEService : Service() {
         }
     }
 
-    private fun startAdvertising() {
+    fun startAdvertising() {
         synchronized(connectedDevicesMap) {
             if (isAdvertising || connectedDevicesMap.isNotEmpty()) {
                 Log.w(tag, "Already advertising???")
@@ -415,11 +382,11 @@ class BLEService : Service() {
             }
         }
 
-        handler?.post { // set up advertising setting
+        handler.post { // set up advertising setting
             if (!serviceSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 throw java.lang.IllegalStateException("Cannot obtain semaphore to start advertising")
             }
-            isAdvertising = true
+            _isAdvertising = true
             val advertiseSettings = AdvertiseSettings.Builder()
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
                 .setConnectable(true)
@@ -454,69 +421,20 @@ class BLEService : Service() {
         }
     }
 
-    private fun stopAdvertising() {
+    fun stopAdvertising() {
         if (!isAdvertising) {
             Log.d(tag, "No advertising, ignoring")
             return
         }
-        handler?.post {
+        handler.post {
             try {
                 bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
-                isAdvertising = false
+                _isAdvertising = false
+                advertisingListener?.onAdvertiseStopped()
             } catch (ignored: IllegalStateException) {
                 // BT Adapter is not turned ON
             }
         }
-    }
-
-    private fun closeGattServer() {
-        val gattServer = gattServer ?: return
-        handler?.post {
-            try {
-                for (device in devices) {
-                    gattServer.cancelConnection(device)
-                }
-                gattServer.close()
-                this.gattServer = null
-
-            } catch (ignored: IllegalStateException) {
-                // BT Adapter is not turned ON
-            }
-        }
-    }
-
-    fun startScanning() {
-        synchronized(detectedDevicesMap) {
-            if (isScanning) {
-                Log.d(tag, "Already scanning, skipping")
-                return
-            }
-            isScanning = true
-        }
-        handler?.postDelayed({
-            Log.i(tag, "Stopping discovery after 10s.")
-            stopScanning()
-        }, 10000)
-        handler?.post {
-            Log.d(tag, "startScanning")
-            val scanSettings = ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-                .setMatchMode(ScanSettings.MATCH_MODE_STICKY)
-                .setReportDelay(0)
-                .build()
-            bluetoothLeScanner?.startScan(arrayListOf(ScanFilter.Builder().build()), scanSettings, scanCallback)
-        }
-    }
-
-    fun stopScanning() {
-        if (!isScanning) {
-            return
-        }
-        handler?.post {
-            Log.d(tag, "stopScanning")
-            bluetoothLeScanner?.stopScan(scanCallback)
-        }
-        isScanning = false
     }
 
     private fun startReportingNotifications(dataSendingRate: Long) {
@@ -528,7 +446,7 @@ class BLEService : Service() {
                     val (inputReportCharacteristic, polled) = gattHandler.pollInputReportQueue()
                     if (polled != null && inputReportCharacteristic != null) {
                         //todo: wait for notificationSent callback in gattServerCallback
-                        handler?.post {
+                        handler.post {
                             val devices = devices
                             if (devices.isEmpty()) {
                                 Log.d(tag, "No devices to send notification")
@@ -557,47 +475,21 @@ class BLEService : Service() {
         }, 0, dataSendingRate)
     }
 
-    inner class LocalBinder : Binder() {
-        fun getService(): BLEService {
-            return this@BLEService
-        }
-    }
+    private fun closeGattServer() {
+        val gattServer = gattServer ?: return
+        handler.post {
+            try {
+                for (device in devices) {
+                    gattServer.cancelConnection(device)
+                }
+                gattServer.close()
+                this.gattServer = null
 
-    fun connectToDevice(device: BluetoothDevice?) {
-        if (device == null) {
-            return
-        }
-        synchronized(connectedDevicesMap) {
-            if (connectedDevicesMap.containsKey(device.address)) {
-                Log.d(tag, "Already connected. Skipping.")
-                return
+            } catch (ignored: IllegalStateException) {
+                // BT Adapter is not turned ON
             }
         }
-        handler?.post {
-            if (bluetoothAdapter?.isDiscovering == true) {
-                bluetoothAdapter?.cancelDiscovery()
-            }
-            // Todo: this (usually) doesn't work.
-            //  Peripheral devices cannot initiate connection. We should rather try reconnection with role switch.
-            if (device.bondState == BluetoothDevice.BOND_NONE) {
-                Log.i(tag, "Trying to bond with the device")
-                device.createBond()
-            }
-            gattServer?.connect(device, false)
-
-        }
     }
 
-    override fun onBind(p0: Intent?): IBinder {
-        return LocalBinder()
-    }
-
-    override fun onDestroy() {
-        stopAdvertising()
-        stopScanning()
-        unregisterReceiver(btReceiver)
-        closeGattServer()
-
-    }
 
 }

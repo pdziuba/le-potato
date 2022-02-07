@@ -1,16 +1,18 @@
 <resources>
     <string name="app_name">Le Potato</string>
     <string name="button_keyboard">Keyboard</string>
-    <string name="button_bluetooth">Bluetooth status</string>
     <string name="touchpad">Touchpad</string>
-    <string name="ble">BLE</string>
-    <string name="device_name">Advertised name</string>
-    <string name="device_address">Device hw address</string>
-    <string name="bluetooth_available">Bluetooth available</string>
+    <string name="device_name">Device name</string>
     <string name="bluetooth_turned_on">Bluetooth turned on?</string>
-    <string name="visible_ble_devices">Nearby devices:</string>
-    <string name="scan_for_devices">Scan for devices</string>
+    <string name="paired_devices">Paired devices:</string>
+    <string name="stop">Stop</string>
+    <string name="scan">Scan</string>
+    <string name="scanning">Scanning…</string>
     <string name="status_idle">Waiting for connection</string>
     <string name="status_connecting">Connecting…</string>
     <string name="status_connected">Connected to device %1$s</string>
+    <string name="advertise">Advertise</string>
+    <string name="advertising">Advertising…</string>
+    <string name="found_devices">Found devices:</string>
+    <string name="advertising_error">Advertising error</string>
 </resources>
