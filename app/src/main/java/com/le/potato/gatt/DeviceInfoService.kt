@@ -1,7 +1,7 @@
 package com.le.potato.gatt
 
 import android.bluetooth.*
-import com.le.potato.BleUuidUtils
+import com.le.potato.utils.UuidUtils
 import java.nio.charset.StandardCharsets
 import java.util.*
 
@@ -13,11 +13,11 @@ class DeviceInfoService(manufacturer: String, deviceName: String, serialNumber: 
     private val serialNumber = clampStringLength(serialNumber)
 
     companion object {
-        val SERVICE_DEVICE_INFORMATION: UUID = BleUuidUtils.fromShortValue(0x180A)
-        val CHARACTERISTIC_MANUFACTURER_NAME: UUID = BleUuidUtils.fromShortValue(0x2A29)
-        val CHARACTERISTIC_MODEL_NUMBER: UUID = BleUuidUtils.fromShortValue(0x2A24)
-        val CHARACTERISTIC_SERIAL_NUMBER: UUID = BleUuidUtils.fromShortValue(0x2A25)
-        val CHARACTERISTIC_PNP_ID: UUID = BleUuidUtils.fromShortValue(0x2A50)
+        val SERVICE_DEVICE_INFORMATION: UUID = UuidUtils.fromShortValue(0x180A)
+        val CHARACTERISTIC_MANUFACTURER_NAME: UUID = UuidUtils.fromShortValue(0x2A29)
+        val CHARACTERISTIC_MODEL_NUMBER: UUID = UuidUtils.fromShortValue(0x2A24)
+        val CHARACTERISTIC_SERIAL_NUMBER: UUID = UuidUtils.fromShortValue(0x2A25)
+        val CHARACTERISTIC_PNP_ID: UUID = UuidUtils.fromShortValue(0x2A50)
 
         // PNP_id with vendor id of Samsung
         val CHARACTERISTIC_PNP_ID_VALUE = byteArrayOf(1, -37, -3, 0, 0, 0, 0)

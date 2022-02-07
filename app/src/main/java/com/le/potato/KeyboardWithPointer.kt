@@ -1,10 +1,23 @@
 package com.le.potato
 
+import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
-import java.util.*
+import com.le.potato.transport.HIDTransport
 
-class KeyboardWithPointer : HidPeripheral(true, true, false, reportMap, 2) {
+class KeyboardWithPointer(private val context: Context) {
+    private var _hidTransport: HIDTransport? = null
+
+    var hidTransport: HIDTransport?
+        get() = _hidTransport
+        set(value) {
+            _hidTransport = value
+            value?.init(context, reportMap)
+        }
+
+    private fun addInputReport(reportId: Int, report: ByteArray) {
+        hidTransport?.addInputReport(reportId, report)
+    }
 
     fun sendKeyDown(isCtrl: Boolean, isShift: Boolean, isAlt: Boolean, keyCode: Int) {
         if (!eventKeycodeToReportMap.containsKey(keyCode)) {
@@ -67,10 +80,6 @@ class KeyboardWithPointer : HidPeripheral(true, true, false, reportMap, 2) {
         lastSent[2] = report[2]
         lastSent[3] = report[3]
         addInputReport(2, report)
-    }
-
-    override fun onOutputReport(outputReport: ByteArray?) {
-        Log.i(TAG, "onOutputReport data: " + Arrays.toString(outputReport))
     }
 
     companion object {

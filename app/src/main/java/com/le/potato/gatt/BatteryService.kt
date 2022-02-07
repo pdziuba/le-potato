@@ -1,14 +1,14 @@
 package com.le.potato.gatt
 
 import android.bluetooth.*
-import com.le.potato.BleUuidUtils
+import com.le.potato.utils.UuidUtils
 import java.util.*
 
 class BatteryService: AbstractGattServiceHandler() {
 
     companion object {
-        val SERVICE_BATTERY: UUID = BleUuidUtils.fromShortValue(0x180F)
-        val CHARACTERISTIC_BATTERY_LEVEL: UUID = BleUuidUtils.fromShortValue(0x2A19)
+        val SERVICE_BATTERY: UUID = UuidUtils.fromShortValue(0x180F)
+        val CHARACTERISTIC_BATTERY_LEVEL: UUID = UuidUtils.fromShortValue(0x2A19)
     }
     override fun setup(): BluetoothGattService {
         val service =

@@ -1,12 +1,14 @@
 package com.le.potato.bledevices
 
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothDevice.*
+import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.util.Log
 import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.ProgressBar
 import com.le.potato.R
 
 import android.widget.TextView
@@ -14,17 +16,21 @@ import android.widget.TextView
 
 class BLEDevicesListAdapter(context: Context) :
     RecyclerView.Adapter<BLEDevicesListAdapter.ViewHolder>() {
-    private var mData: MutableList<BluetoothDevice> = ArrayList()
+    private var mData: MutableList<BTDeviceWrapper> = ArrayList()
     private val mInflater: LayoutInflater = LayoutInflater.from(context)
     var clickListener: ItemClickListener? = null
 
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView),
         View.OnClickListener {
-        var myTextView: TextView? = null
+        var deviceName: TextView? = null
+        var connectionProgressBar: ProgressBar? = null
+        var statusIcon: ImageView? = null
 
         init {
-            myTextView = itemView.findViewById(R.id.device_name_text_view)
+            deviceName = itemView.findViewById(R.id.device_name_text)
+            connectionProgressBar = itemView.findViewById(R.id.connection_spinner)
+            statusIcon = itemView.findViewById(R.id.status_icon)
             itemView.setOnClickListener(this)
         }
 
@@ -39,36 +45,55 @@ class BLEDevicesListAdapter(context: Context) :
         return ViewHolder(view)
     }
 
-    private fun deviceToString(device: BluetoothDevice): String {
-        val devName = if (device.name != null) device.name else "unknown"
-        val connectionState = when(device.bondState) {
-            BOND_NONE -> "Not connected"
-            BOND_BONDING -> "Connecting"
-            BOND_BONDED -> "Connected"
-            else -> "WTF State"
-        }
-        return "$devName @ ${device.address} ($connectionState)"
+    private fun deviceToString(device: BTDeviceWrapper): String? {
+         return device.name ?: device.address
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val dev = mData[position]
-        holder.myTextView?.text = deviceToString(dev)
+        holder.deviceName?.text = deviceToString(dev)
+        Log.i("onBindViewHolder", "Dev ${dev.name} state = ${dev.connectionState}")
+        when (dev.connectionState) {
+            BluetoothProfile.STATE_CONNECTING -> {
+                holder.connectionProgressBar?.visibility = View.VISIBLE
+                holder.statusIcon?.visibility = View.INVISIBLE
+            }
+            BluetoothProfile.STATE_DISCONNECTED -> {
+                holder.connectionProgressBar?.visibility = View.INVISIBLE
+                holder.statusIcon?.visibility = View.VISIBLE
+                holder.statusIcon?.setImageResource(R.drawable.ic_plug_in)
+            }
+            else -> {
+                holder.connectionProgressBar?.visibility = View.INVISIBLE
+                holder.statusIcon?.visibility = View.VISIBLE
+                holder.statusIcon?.setImageResource(R.drawable.ic_baseline_done_24)
+            }
+
+        }
     }
 
     override fun getItemCount(): Int {
         return mData.size
     }
 
-    fun getItem(position: Int): BluetoothDevice {
+    fun getItem(position: Int): BTDeviceWrapper {
         return mData[position]
     }
 
-    fun addDevice(device: BluetoothDevice) {
+    fun addDevice(device: BTDeviceWrapper) {
         if (device.name == null) return
 
         if (!mData.contains(device)) {
             mData.add(device)
             notifyItemInserted(mData.size - 1)
+        }
+    }
+
+    fun updateDevice(device: BTDeviceWrapper) {
+        val index = mData.indexOfFirst { it.address == device.address }
+        if (index >= 0) {
+            mData[index] = device
+            notifyItemChanged(index)
         }
     }
 

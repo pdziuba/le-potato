@@ -23,13 +23,16 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.le.potato.transport.BluetoothFacadeService
+import com.le.potato.transport.DeviceConnectedListener
+import com.le.potato.utils.BluetoothEnabler
 import kotlin.math.max
 
 
 class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
-    private val tag = "MainActivity"
-    private var bleService: BLEService? = null
-    private var keyboardWithPointer: KeyboardWithPointer? = null
+    private val tag = MainActivity::class.java.simpleName
+    private var bluetoothService: BluetoothFacadeService? = null
+    private val keyboardWithPointer: KeyboardWithPointer = KeyboardWithPointer(this)
     private var requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             if (!it) {
@@ -39,20 +42,20 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
-            val binder = _binder as BLEService.LocalBinder
+            val binder = _binder as BluetoothFacadeService.LocalBinder
             val service = binder.getService()
-            keyboardWithPointer = service.keyboard
-            service.deviceConnectedListener = this@MainActivity
-            bleService = service
+
+            bluetoothService = service
             val devices = service.devices
             if (devices.isNotEmpty()) {
                 onDeviceConnected(devices.first())
             }
+            service.registerDeviceConnectedListener(this@MainActivity)
+            keyboardWithPointer.hidTransport = service
         }
 
         override fun onServiceDisconnected(p0: ComponentName?) {
-            keyboardWithPointer = null
-            bleService?.deviceConnectedListener = null
+            keyboardWithPointer.hidTransport = null
         }
     }
 
@@ -66,7 +69,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View?, motionEvent: MotionEvent?): Boolean {
             val mouse = keyboardWithPointer
-            if (motionEvent == null || mouse == null || bleService?.devices?.isEmpty() == true) {
+            if (motionEvent == null || bluetoothService?.devices?.isEmpty() == true) {
                 return false
             }
             when (motionEvent.action) {
@@ -142,18 +145,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         askForPermissions()
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         if (btManager.adapter?.isEnabled == false) {
-            BluetoothHelper.enableBluetoothOrFinish(this)
+            BluetoothEnabler.enableBluetoothOrFinish(this)
         }
-        val intent = Intent(this, BLEService::class.java)
+        val intent = Intent(this, BluetoothFacadeService::class.java)
 
         bindService(intent, serviceConnection, BIND_AUTO_CREATE)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        bleService?.deviceConnectedListener = null
+        bluetoothService?.unregisterDeviceConnectedListener(this)
         unbindService(serviceConnection)
-        keyboardWithPointer = null
     }
 
     private fun askForPermissions() {
@@ -184,14 +186,14 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     fun showBluetoothStatus(view: View) {
-        startActivity(Intent(this, BluetoothStatusActivity::class.java))
+        startActivity(Intent(view.context, BluetoothStatusActivity::class.java))
     }
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
         if (event?.action == KeyEvent.ACTION_DOWN) {
-            keyboardWithPointer?.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
+            keyboardWithPointer.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
         } else {
-            keyboardWithPointer?.sendKeyUp()
+            keyboardWithPointer.sendKeyUp()
         }
         return true
     }

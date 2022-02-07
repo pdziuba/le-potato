@@ -3,29 +3,30 @@ package com.le.potato
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
-import android.util.Log
 import android.view.View
-import android.widget.CheckBox
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.le.potato.bledevices.BLEDevicesListAdapter
+import com.le.potato.bledevices.BTDeviceWrapper
+import com.le.potato.transport.AdvertisingListener
+import com.le.potato.transport.BluetoothFacadeService
+import com.le.potato.transport.DeviceConnectedListener
+import com.le.potato.utils.BluetoothEnabler
 
 
 class BluetoothStatusActivity : AppCompatActivity(),
-    BLEDevicesListAdapter.ItemClickListener, DeviceDetectedListener {
-    private val tag = "BluetoothStatusActivity"
+    BLEDevicesListAdapter.ItemClickListener, AdvertisingListener, DeviceConnectedListener {
     private var bleDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
-    private var bleService: BLEService? = null
+    private var bluetoothFacadeService: BluetoothFacadeService? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,24 +39,25 @@ class BluetoothStatusActivity : AppCompatActivity(),
             finish()
             return
         }
-        val recyclerView: RecyclerView = findViewById(R.id.ble_devices)
+        val recyclerView: RecyclerView = findViewById(R.id.paired_devices)
         bleDevicesListAdapter = BLEDevicesListAdapter(this)
         bleDevicesListAdapter?.clickListener = this
         recyclerView.adapter = bleDevicesListAdapter
         recyclerView.layoutManager = LinearLayoutManager(this)
-        val intent = Intent(this, BLEService::class.java)
+        val intent = Intent(this, BluetoothFacadeService::class.java)
         bindService(intent, object : ServiceConnection {
             override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
-                Log.d(tag, "connecting service")
-                val binder = _binder as BLEService.LocalBinder
+                val binder = _binder as BluetoothFacadeService.LocalBinder
                 val service = binder.getService()
-                service.deviceDetectedListener = this@BluetoothStatusActivity
-                bleService = service
+                service.advertisingListener = this@BluetoothStatusActivity
+                service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
+                bluetoothFacadeService = service
+                loadBTDevicesState()
 
             }
 
             override fun onServiceDisconnected(p0: ComponentName?) {
-                bleService = null
+                bluetoothFacadeService = null
             }
 
         }, BIND_AUTO_CREATE)
@@ -72,50 +74,108 @@ class BluetoothStatusActivity : AppCompatActivity(),
         // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
         // fire an intent to display a dialog asking the user to grant permission to enable it.
         if (!bluetoothAdapter!!.isEnabled) {
-            BluetoothHelper.enableBluetoothOrFinish(this)
-        }
-        else {
+            BluetoothEnabler.enableBluetoothOrFinish(this)
+        } else {
             loadBluetoothStatus()
+            loadBTDevicesState()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        bleDevicesListAdapter?.clear()
     }
 
     private fun loadBluetoothStatus() {
         val bluetoothAdapter = bluetoothAdapter ?: return
-
-        val isBluetoothSupported = true
         val isBluetoothEnabled = bluetoothAdapter.isEnabled
-        val isBLESupported =
-            packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
         val deviceName = bluetoothAdapter.name
-        findViewById<CheckBox>(R.id.bluetooth_available_checkbox).isChecked =
-            isBluetoothSupported
         findViewById<CheckBox>(R.id.bluetooth_on_checkbox).isChecked = isBluetoothEnabled
-        findViewById<CheckBox>(R.id.ble_checkbox).isChecked = isBLESupported
-        findViewById<TextView>(R.id.device_name_text_view).text = deviceName
-        for (device in bluetoothAdapter.bondedDevices) {
-            bleDevicesListAdapter?.addDevice(device)
-        }
-
+        findViewById<TextView>(R.id.device_name_text).text = deviceName
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        bleService?.stopScanning()
-        bleService?.deviceDetectedListener = null
+    private fun loadBTDevicesState() {
+        val bluetoothAdapter = bluetoothAdapter ?: return
+        val bluetoothFacadeService = bluetoothFacadeService?: return
+        for (device in bluetoothAdapter.bondedDevices) {
+            val state = when {
+                (bluetoothFacadeService.connectedDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTED
+                (bluetoothFacadeService.connectingDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTING
+                else -> BluetoothProfile.STATE_DISCONNECTED
+            }
+            bleDevicesListAdapter?.addDevice(BTDeviceWrapper(device, state))
+        }
+
+        if (bluetoothFacadeService.isAdvertising) {
+            onAdvertiseStarted()
+        }
     }
 
     override fun onItemClick(view: View?, position: Int) {
-        Toast.makeText(this, bleDevicesListAdapter?.getItem(position)?.name, Toast.LENGTH_SHORT).show()
-        bleService?.connectToDevice(bleDevicesListAdapter?.getItem(position))
+        val deviceWrapper = bleDevicesListAdapter?.getItem(position) ?: return
+        when (deviceWrapper.connectionState) {
+            BluetoothProfile.STATE_DISCONNECTED -> {bluetoothFacadeService?.connectToDevice(deviceWrapper.device)}
+            BluetoothProfile.STATE_CONNECTED -> {bluetoothFacadeService?.disconnect(deviceWrapper.device)}
+        }
     }
 
-    override fun onDeviceDetected(device: BluetoothDevice) {
+    fun onDeviceDetected(device: BluetoothDevice) {
         runOnUiThread {
-            bleDevicesListAdapter?.addDevice(device)
+            bleDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
         }
     }
 
     fun onScanButtonClicked(view: View?) {
-        bleService?.startScanning()
+        bluetoothFacadeService?.startScanning()
+    }
+
+    fun onAdvertiseButtonClicked(view: View?) {
+        val service = bluetoothFacadeService ?: return
+
+        if (service.isAdvertising) {
+            service.stopAdvertising()
+        } else {
+            service.startAdvertising()
+        }
+    }
+
+    override fun onAdvertiseStarted() {
+        runOnUiThread {
+            findViewById<ProgressBar>(R.id.advertise_spinner).visibility = View.VISIBLE
+            findViewById<Button>(R.id.advertise_button).text = getString(R.string.stop)
+            setScanningEnabled(false)
+        }
+    }
+
+    override fun onAdvertiseStopped() {
+        runOnUiThread {
+            findViewById<ProgressBar>(R.id.advertise_spinner).visibility = View.INVISIBLE
+            findViewById<Button>(R.id.advertise_button).text = getString(R.string.advertise)
+            setScanningEnabled(true)
+        }
+    }
+
+    override fun onAdvertiseFailure() {
+        runOnUiThread {
+            Toast.makeText(this, getString(R.string.advertising_error), Toast.LENGTH_SHORT).show()
+            findViewById<Button>(R.id.advertise_button).text = getString(R.string.advertise)
+            setScanningEnabled(true)
+        }
+    }
+
+    private fun setScanningEnabled(enabled: Boolean) {
+        findViewById<Button>(R.id.scan_button).isEnabled = enabled
+    }
+
+    override fun onDeviceConnected(device: BluetoothDevice) {
+        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+    }
+
+    override fun onDeviceConnecting(device: BluetoothDevice) {
+        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+    }
+
+    override fun onDeviceDisconnected(device: BluetoothDevice) {
+        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
     }
 }
