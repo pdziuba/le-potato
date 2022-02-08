@@ -31,6 +31,10 @@ open class DeviceConnectedSubject: DeviceConnectionObservable {
     override fun fireDeviceConnectingEvent(device: BluetoothDevice) {
         deviceConnectedListeners.forEach { it.onDeviceConnecting(device) }
     }
+
+    override fun fireDeviceConnectionErrorEvent(device: BluetoothDevice, error: String?) {
+        deviceConnectedListeners.forEach { it.onDeviceConnectionError(device, error) }
+    }
 }
 
 abstract class AbstractHIDTransport(subject: DeviceConnectedSubject = DeviceConnectedSubject()): HIDTransport, DeviceConnectionObservable by subject {

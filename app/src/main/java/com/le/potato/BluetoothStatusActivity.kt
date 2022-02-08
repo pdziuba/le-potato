@@ -21,10 +21,11 @@ import com.le.potato.transport.*
 import com.le.potato.utils.BluetoothEnabler
 
 
-class BluetoothStatusActivity : AppCompatActivity(),
-    BLEDevicesListAdapter.ItemClickListener, AdvertisingListener, DeviceConnectedListener, DeviceDetectedListener {
+class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, DeviceConnectedListener,
+    DeviceDiscoveryListener {
     private val tag = BluetoothStatusActivity::class.java.simpleName
-    private var bleDevicesListAdapter: BLEDevicesListAdapter? = null
+    private var pairedDevicesListAdapter: BLEDevicesListAdapter? = null
+    private var discoveredDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothFacadeService: BluetoothFacadeService? = null
 
@@ -39,11 +40,10 @@ class BluetoothStatusActivity : AppCompatActivity(),
             finish()
             return
         }
-        val recyclerView: RecyclerView = findViewById(R.id.paired_devices)
-        bleDevicesListAdapter = BLEDevicesListAdapter(this)
-        bleDevicesListAdapter?.clickListener = this
-        recyclerView.adapter = bleDevicesListAdapter
-        recyclerView.layoutManager = LinearLayoutManager(this)
+        pairedDevicesListAdapter = BLEDevicesListAdapter(this)
+        discoveredDevicesListAdapter = BLEDevicesListAdapter(this)
+        configureDevicesList(findViewById(R.id.paired_devices), pairedDevicesListAdapter!!)
+        configureDevicesList(findViewById(R.id.found_devices), discoveredDevicesListAdapter!!)
         val intent = Intent(this, BluetoothFacadeService::class.java)
         bindService(intent, object : ServiceConnection {
             override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
@@ -51,7 +51,7 @@ class BluetoothStatusActivity : AppCompatActivity(),
                 val service = binder.getService()
                 service.advertisingListener = this@BluetoothStatusActivity
                 service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
-                service.deviceDetectedListener = this@BluetoothStatusActivity
+                service.deviceDiscoveryListener = this@BluetoothStatusActivity
                 bluetoothFacadeService = service
                 loadBTDevicesState()
 
@@ -64,9 +64,15 @@ class BluetoothStatusActivity : AppCompatActivity(),
         }, BIND_AUTO_CREATE)
     }
 
+    private fun configureDevicesList(recyclerView: RecyclerView, adapter: BLEDevicesListAdapter) {
+        adapter.clickListener = DeviceClickListener(adapter)
+        recyclerView.adapter = adapter
+        recyclerView.layoutManager = LinearLayoutManager(this)
+    }
+
     override fun onDestroy() {
         bluetoothFacadeService?.unregisterDeviceConnectedListener(this)
-        bluetoothFacadeService?.deviceDetectedListener = null
+        bluetoothFacadeService?.deviceDiscoveryListener = null
         bluetoothFacadeService?.advertisingListener = null
         super.onDestroy()
     }
@@ -90,7 +96,8 @@ class BluetoothStatusActivity : AppCompatActivity(),
 
     override fun onStop() {
         super.onStop()
-        bleDevicesListAdapter?.clear()
+        pairedDevicesListAdapter?.clear()
+        discoveredDevicesListAdapter?.clear()
     }
 
     private fun loadBluetoothStatus() {
@@ -103,14 +110,14 @@ class BluetoothStatusActivity : AppCompatActivity(),
 
     private fun loadBTDevicesState() {
         val bluetoothAdapter = bluetoothAdapter ?: return
-        val bluetoothFacadeService = bluetoothFacadeService?: return
+        val bluetoothFacadeService = bluetoothFacadeService ?: return
         for (device in bluetoothAdapter.bondedDevices) {
             val state = when {
                 (bluetoothFacadeService.connectedDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTED
                 (bluetoothFacadeService.connectingDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTING
                 else -> BluetoothProfile.STATE_DISCONNECTED
             }
-            bleDevicesListAdapter?.addDevice(BTDeviceWrapper(device, state))
+            pairedDevicesListAdapter?.addDevice(BTDeviceWrapper(device, state))
         }
 
         if (bluetoothFacadeService.isAdvertising) {
@@ -118,24 +125,48 @@ class BluetoothStatusActivity : AppCompatActivity(),
         }
     }
 
-    override fun onItemClick(view: View?, position: Int) {
-        val deviceWrapper = bleDevicesListAdapter?.getItem(position) ?: return
-        when (deviceWrapper.connectionState) {
-            BluetoothProfile.STATE_DISCONNECTED -> {bluetoothFacadeService?.connectToDevice(deviceWrapper.device)}
-            BluetoothProfile.STATE_CONNECTED -> {bluetoothFacadeService?.disconnect(deviceWrapper.device)}
+    inner class DeviceClickListener(private val adapter: BLEDevicesListAdapter) :
+        BLEDevicesListAdapter.ItemClickListener {
+        override fun onItemClick(view: View?, position: Int) {
+            val deviceWrapper = adapter.getItem(position)
+            when (deviceWrapper.connectionState) {
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    bluetoothFacadeService?.connectToDevice(deviceWrapper.device)
+                }
+                BluetoothProfile.STATE_CONNECTED -> {
+                    bluetoothFacadeService?.disconnect(deviceWrapper.device)
+                }
+            }
         }
+
     }
 
     override fun onDeviceDetected(device: BluetoothDevice) {
         runOnUiThread {
-            bleDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            discoveredDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
         }
     }
 
+    override fun onDiscoveryStarted() {
+        runOnUiThread {
+            findViewById<Button>(R.id.scan_button).text = getString(R.string.stop)
+            findViewById<ProgressBar>(R.id.scan_spinner).visibility = View.VISIBLE
+        }
+    }
+
+    override fun onDiscoveryStopped() {
+        runOnUiThread {
+            findViewById<Button>(R.id.scan_button).text = getString(R.string.scan)
+            findViewById<ProgressBar>(R.id.scan_spinner).visibility = View.INVISIBLE
+        }
+    }
+
+    @Suppress("UNUSED_PARAMETER")
     fun onScanButtonClicked(view: View?) {
         bluetoothFacadeService?.startScanning()
     }
 
+    @Suppress("UNUSED_PARAMETER")
     fun onAdvertiseButtonClicked(view: View?) {
         val service = bluetoothFacadeService ?: return
 
@@ -177,21 +208,31 @@ class BluetoothStatusActivity : AppCompatActivity(),
     override fun onDeviceConnected(device: BluetoothDevice) {
         runOnUiThread {
             Log.d(tag, "onDeviceConnected ${device.address}")
-            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
         }
     }
 
     override fun onDeviceConnecting(device: BluetoothDevice) {
         runOnUiThread {
             Log.d(tag, "onDeviceConnecting ${device.address}")
-            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
         }
     }
 
     override fun onDeviceDisconnected(device: BluetoothDevice) {
         runOnUiThread {
             Log.d(tag, "onDeviceDisconnected ${device.address}")
-            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+        }
+    }
+
+    override fun onDeviceConnectionError(device: BluetoothDevice, error: String?) {
+        runOnUiThread {
+            if (error == null) {
+                Toast.makeText(this, getString(R.string.connection_error), Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, getString(R.string.connection_error_details, error), Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

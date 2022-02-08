@@ -22,10 +22,10 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     private var _connectedDevice: BluetoothDevice? = null
     private var _connectingDevice: BluetoothDevice? = null
 
-    var deviceDetectedListener: DeviceDetectedListener?
-        get() = classicTransport.deviceDetectedListener
+    var deviceDiscoveryListener: DeviceDiscoveryListener?
+        get() = classicTransport.deviceDiscoveryListener
         set(value) {
-            classicTransport.deviceDetectedListener = value
+            classicTransport.deviceDiscoveryListener = value
         }
 
     val connectedDevice: BluetoothDevice?
@@ -63,12 +63,17 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         }
 
         override fun onDeviceDisconnected(device: BluetoothDevice) {
-            if (activeTransport == source || activeTransport == null) {
+            if (activeTransport == source) {
                 activeTransport = null
                 _connectingDevice = null
                 _connectedDevice = null
                 fireDeviceDisconnectedEvent(device)
             }
+        }
+
+        override fun onDeviceConnectionError(device: BluetoothDevice, error: String?) {
+            _connectingDevice = null
+            fireDeviceConnectionErrorEvent(device, error)
         }
     }
 
@@ -153,6 +158,8 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
                     subject.unregisterDeviceConnectedListener(this)
                     classicTransport.connectToDevice(device)
                 }
+
+                override fun onDeviceConnectionError(device: BluetoothDevice, error: String?) {}
 
             })
             activeTransport?.disconnect(connectedDevice!!)
