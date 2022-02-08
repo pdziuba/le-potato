@@ -15,4 +15,6 @@
     <string name="advertising">Advertising…</string>
     <string name="found_devices">Found devices:</string>
     <string name="advertising_error">Advertising error</string>
+    <string name="connection_error">Connection error</string>
+    <string name="connection_error_details">Connection error: %1$s</string>
 </resources>

@@ -218,4 +218,13 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
             findViewById<Button>(R.id.keyboard_button).isEnabled = false
         }
     }
+    override fun onDeviceConnectionError(device: BluetoothDevice, error: String?) {
+        runOnUiThread {
+            if (error == null) {
+                Toast.makeText(this, getString(R.string.connection_error), Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, getString(R.string.connection_error_details, error), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 }

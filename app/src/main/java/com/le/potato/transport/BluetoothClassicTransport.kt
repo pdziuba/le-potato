@@ -1,22 +1,19 @@
 package com.le.potato.transport
 
 import android.bluetooth.*
-import android.bluetooth.le.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
-import com.le.potato.KeyboardWithPointer
-import java.lang.Exception
-import java.lang.IllegalStateException
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.Semaphore
-import java.util.concurrent.TimeUnit
 
-interface DeviceDetectedListener {
+
+interface DeviceDiscoveryListener {
     fun onDeviceDetected(device: BluetoothDevice)
+    fun onDiscoveryStarted()
+    fun onDiscoveryStopped()
 }
 
 class BluetoothClassicTransport : AbstractHIDTransport() {
@@ -25,8 +22,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     private var hidDevice: BluetoothHidDevice? = null
     private var _isScanning = false
     private val detectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
-    var deviceDetectedListener: DeviceDetectedListener? = null
-    private var bluetoothLeScanner: BluetoothLeScanner? = null
+    var deviceDiscoveryListener: DeviceDiscoveryListener? = null
     private val inputReportQueue: Queue<Pair<Int, ByteArray>> = ConcurrentLinkedQueue()
 
     val isScanning: Boolean
@@ -42,12 +38,13 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
 
     override fun init(context: Context, reportMap: ByteArray) {
         super.init(context, reportMap)
-        bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-            ?: throw UnsupportedOperationException("Bluetooth LE Scanning is not supported on this device.")
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        intentFilter.addAction(BluetoothDevice.ACTION_FOUND)
+        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         context.registerReceiver(btReceiver, intentFilter)
-        startReportingNotifications(20)
+        startReportingNotifications()
     }
 
     private val btReceiver = object : BroadcastReceiver() {
@@ -55,15 +52,25 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
 
+            val bluetoothDevice =
+                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
+
             when (intent.action) {
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
-                    val bluetoothDevice =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
+
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
                     if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice == connectingDevice) {
                         finalizeConnection(bluetoothDevice)
                     }
                 }
+                BluetoothDevice.ACTION_FOUND -> {
+                    synchronized(detectedDevicesMap) {
+                        detectedDevicesMap.put(bluetoothDevice.address, bluetoothDevice)
+                    }
+                    deviceDiscoveryListener?.onDeviceDetected(bluetoothDevice)
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> deviceDiscoveryListener?.onDiscoveryStarted()
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> deviceDiscoveryListener?.onDiscoveryStopped()
                 else -> {
                     Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
                 }
@@ -71,11 +78,14 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }
     }
 
-    inner class ClassicHidCallback(private var targetDevice: BluetoothDevice): BluetoothHidDevice.Callback() {
+    inner class ClassicHidCallback(private var targetDevice: BluetoothDevice) : BluetoothHidDevice.Callback() {
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             super.onAppStatusChanged(pluggedDevice, registered)
             Log.i(tag, "ClassicHID app status changed device is $pluggedDevice registered $registered")
-            hidDevice?.connect(targetDevice)
+
+            if (hidDevice?.connect(targetDevice) != true) {
+                fireDeviceConnectionErrorEvent(targetDevice, "Zjebało się")
+            }
 
         }
 
@@ -97,7 +107,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                     fireDeviceDisconnectedEvent(device)
                 }
             }
-
         }
 
         override fun onGetReport(device: BluetoothDevice?, type: Byte, id: Byte, bufferSize: Int) {
@@ -159,22 +168,20 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         stopScanning()
         connectingDevice = device
         fireDeviceConnectingEvent(device)
-        handler.post {
-            if (bluetoothAdapter.isDiscovering) {
-                bluetoothAdapter.cancelDiscovery()
-            }
-            if (device.bondState == BluetoothDevice.BOND_NONE) {
-//                Log.i(tag, "Trying to bond with the device")
-//                device.createBond()
-//            } else {
-                setupHIDProfile(device)
+        synchronized(detectedDevicesMap) {
+            if (detectedDevicesMap.isNotEmpty()) {
+                hidDevice?.unregisterApp()
             }
         }
+        // todo: this is dirty as Sasha Gray
+        handler.postDelayed({
+            setupHIDProfile(device)
+        }, 5000)
     }
 
     private fun setupHIDProfile(device: BluetoothDevice) {
-        hidDevice?.unregisterApp()
-        hidDevice = null
+//        hidDevice?.unregisterApp()
+//        hidDevice = null
         Log.d(tag, "Setting up HID profile")
         bluetoothAdapter.getProfileProxy(applicationContext, object : BluetoothProfile.ServiceListener {
 
@@ -222,36 +229,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }, BluetoothProfile.HID_DEVICE)
     }
 
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult?) {
-            super.onScanResult(callbackType, result)
-            if (result != null) {
-                synchronized(detectedDevicesMap) {
-                    detectedDevicesMap.put(result.device.address, result.device)
-                }
-                deviceDetectedListener?.onDeviceDetected(result.device)
-            }
-        }
-
-        override fun onBatchScanResults(results: MutableList<ScanResult>?) {
-            super.onBatchScanResults(results)
-            Log.i(tag, "onBatchScanResults")
-            if (results != null) {
-                for (result in results) {
-                    synchronized(detectedDevicesMap) {
-                        detectedDevicesMap[result.device.address] = result.device
-                    }
-                    deviceDetectedListener?.onDeviceDetected(result.device)
-                }
-            }
-        }
-
-        override fun onScanFailed(errorCode: Int) {
-            super.onScanFailed(errorCode)
-            Log.e(tag, "BLE Scan failed, errorcode = $errorCode")
-        }
-    }
-
     fun startScanning() {
         synchronized(detectedDevicesMap) {
             if (isScanning) {
@@ -266,12 +243,9 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }, 20000)
         handler.post {
             Log.d(tag, "startScanning")
-            val scanSettings = ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-                .setReportDelay(0)
-                .build()
-            bluetoothLeScanner?.startScan(arrayListOf(ScanFilter.Builder().build()), scanSettings, scanCallback)
+            if (!bluetoothAdapter.startDiscovery()) {
+                Log.wtf(tag, "Start discovery failed!")
+            }
         }
     }
 
@@ -281,12 +255,14 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }
         handler.post {
             Log.d(tag, "stopScanning")
-            bluetoothLeScanner?.stopScan(scanCallback)
+            if (!bluetoothAdapter.cancelDiscovery()) {
+                Log.wtf(tag, "Cancel discovery failed :(")
+            }
         }
         _isScanning = false
     }
 
-    private fun startReportingNotifications(dataSendingRate: Long) {
+    private fun startReportingNotifications(dataSendingRate: Long = 20) {
         // send report each dataSendingRate, if data available
         Timer().scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
