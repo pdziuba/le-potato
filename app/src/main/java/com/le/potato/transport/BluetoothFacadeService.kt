@@ -10,7 +10,8 @@ import android.os.IBinder
 import android.util.Log
 
 
-class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSubject()) : Service(), HIDTransport, DeviceConnectionObservable by subject {
+class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSubject()) : Service(), HIDTransport,
+    DeviceConnectionObservable by subject {
     private val tag = BluetoothFacadeService::class.java.simpleName
     private val bleTransport = BLETransport()
     private val classicTransport = BluetoothClassicTransport()
@@ -20,6 +21,12 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     private var initialized = false
     private var _connectedDevice: BluetoothDevice? = null
     private var _connectingDevice: BluetoothDevice? = null
+
+    var deviceDetectedListener: DeviceDetectedListener?
+        get() = classicTransport.deviceDetectedListener
+        set(value) {
+            classicTransport.deviceDetectedListener = value
+        }
 
     val connectedDevice: BluetoothDevice?
         get() = _connectedDevice
@@ -42,7 +49,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
             bleTransport.advertisingListener = value
         }
 
-    private inner class ConnectionListener(val source: HIDTransport): DeviceConnectedListener {
+    private inner class ConnectionListener(val source: HIDTransport) : DeviceConnectedListener {
         override fun onDeviceConnected(device: BluetoothDevice) {
             activeTransport = source
             _connectingDevice = null
@@ -56,7 +63,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         }
 
         override fun onDeviceDisconnected(device: BluetoothDevice) {
-            if (activeTransport == source) {
+            if (activeTransport == source || activeTransport == null) {
                 activeTransport = null
                 _connectingDevice = null
                 _connectedDevice = null
@@ -137,7 +144,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
             // todo: this is dirty :(
             val subject: DeviceConnectedSubject = activeTransport as DeviceConnectedSubject
             // wait until active device is disconnected then create new connection
-            subject.registerDeviceConnectedListener(object: DeviceConnectedListener{
+            subject.registerDeviceConnectedListener(object : DeviceConnectedListener {
                 override fun onDeviceConnected(device: BluetoothDevice) {}
 
                 override fun onDeviceConnecting(device: BluetoothDevice) {}
