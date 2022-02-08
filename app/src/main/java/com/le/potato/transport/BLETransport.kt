@@ -31,6 +31,7 @@ class BLETransport: AbstractHIDTransport() {
     private var bluetoothLeAdvertiser: BluetoothLeAdvertiser? = null
     private var gattServer: BluetoothGattServer? = null
     private lateinit var hidService: HIDService
+    private var connectingDevice: BluetoothDevice? = null
     private val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
     var advertisingListener: AdvertisingListener? = null
     val isAdvertising: Boolean
@@ -72,7 +73,6 @@ class BLETransport: AbstractHIDTransport() {
         startReportingNotifications(20)
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        intentFilter.addAction(BluetoothAdapter.ACTION_SCAN_MODE_CHANGED)
         context.registerReceiver(btReceiver, intentFilter)
     }
 
@@ -84,16 +84,10 @@ class BLETransport: AbstractHIDTransport() {
             when (intent.action) {
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                     val bluetoothDevice =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice?
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
-                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice != null) {
+                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice == connectingDevice) {
                         finalizeConnection(bluetoothDevice)
-                    }
-                }
-                BluetoothAdapter.ACTION_SCAN_MODE_CHANGED -> {
-                    val prevMode = intent.getParcelableArrayExtra(BluetoothAdapter.EXTRA_PREVIOUS_SCAN_MODE) as Int?
-                    if (prevMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
-                        advertisingListener?.onAdvertiseStopped()
                     }
                 }
                 else -> {
@@ -101,7 +95,6 @@ class BLETransport: AbstractHIDTransport() {
                 }
             }
         }
-
     }
 
     override fun addInputReport(reportId: Int, report: ByteArray) {
@@ -167,6 +160,7 @@ class BLETransport: AbstractHIDTransport() {
                     if (device.bondState == BluetoothDevice.BOND_BONDED) {
                         finalizeConnection(device)
                     } else {
+                        connectingDevice = device
                         fireDeviceConnectingEvent(device)
                     }
                 }
@@ -349,6 +343,7 @@ class BLETransport: AbstractHIDTransport() {
         synchronized(connectedDevicesMap) {
             connectedDevicesMap.put(device.address, device)
         }
+        connectingDevice = null
         stopAdvertising()
         fireDeviceConnectedEvent(device)
     }

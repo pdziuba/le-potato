@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -16,14 +17,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.le.potato.bledevices.BLEDevicesListAdapter
 import com.le.potato.bledevices.BTDeviceWrapper
-import com.le.potato.transport.AdvertisingListener
-import com.le.potato.transport.BluetoothFacadeService
-import com.le.potato.transport.DeviceConnectedListener
+import com.le.potato.transport.*
 import com.le.potato.utils.BluetoothEnabler
 
 
 class BluetoothStatusActivity : AppCompatActivity(),
-    BLEDevicesListAdapter.ItemClickListener, AdvertisingListener, DeviceConnectedListener {
+    BLEDevicesListAdapter.ItemClickListener, AdvertisingListener, DeviceConnectedListener, DeviceDetectedListener {
+    private val tag = BluetoothStatusActivity::class.java.simpleName
     private var bleDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothFacadeService: BluetoothFacadeService? = null
@@ -51,6 +51,7 @@ class BluetoothStatusActivity : AppCompatActivity(),
                 val service = binder.getService()
                 service.advertisingListener = this@BluetoothStatusActivity
                 service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
+                service.deviceDetectedListener = this@BluetoothStatusActivity
                 bluetoothFacadeService = service
                 loadBTDevicesState()
 
@@ -61,7 +62,13 @@ class BluetoothStatusActivity : AppCompatActivity(),
             }
 
         }, BIND_AUTO_CREATE)
+    }
 
+    override fun onDestroy() {
+        bluetoothFacadeService?.unregisterDeviceConnectedListener(this)
+        bluetoothFacadeService?.deviceDetectedListener = null
+        bluetoothFacadeService?.advertisingListener = null
+        super.onDestroy()
     }
 
     override fun onResume() {
@@ -119,7 +126,7 @@ class BluetoothStatusActivity : AppCompatActivity(),
         }
     }
 
-    fun onDeviceDetected(device: BluetoothDevice) {
+    override fun onDeviceDetected(device: BluetoothDevice) {
         runOnUiThread {
             bleDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
         }
@@ -168,14 +175,23 @@ class BluetoothStatusActivity : AppCompatActivity(),
     }
 
     override fun onDeviceConnected(device: BluetoothDevice) {
-        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+        runOnUiThread {
+            Log.d(tag, "onDeviceConnected ${device.address}")
+            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+        }
     }
 
     override fun onDeviceConnecting(device: BluetoothDevice) {
-        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+        runOnUiThread {
+            Log.d(tag, "onDeviceConnecting ${device.address}")
+            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+        }
     }
 
     override fun onDeviceDisconnected(device: BluetoothDevice) {
-        bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+        runOnUiThread {
+            Log.d(tag, "onDeviceDisconnected ${device.address}")
+            bleDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+        }
     }
 }
