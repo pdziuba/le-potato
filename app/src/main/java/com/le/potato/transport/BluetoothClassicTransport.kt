@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
+import com.le.potato.utils.bondStateLabels
+import java.lang.IllegalStateException
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -20,13 +22,13 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     private val tag = BluetoothClassicTransport::class.java.simpleName
     private var connectingDevice: BluetoothDevice? = null
     private var hidDevice: BluetoothHidDevice? = null
-    private var _isScanning = false
     private val detectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     var deviceDiscoveryListener: DeviceDiscoveryListener? = null
     private val inputReportQueue: Queue<Pair<Int, ByteArray>> = ConcurrentLinkedQueue()
+    private var reportingTimer: Timer? = null
 
     val isScanning: Boolean
-        get() = _isScanning
+        get() = bluetoothAdapter.isDiscovering
 
     private fun finalizeConnection(device: BluetoothDevice) {
         synchronized(connectedDevicesMap) {
@@ -44,6 +46,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
         intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         context.registerReceiver(btReceiver, intentFilter)
+        setupHIDProfile()
         startReportingNotifications()
     }
 
@@ -51,26 +54,31 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         //todo: handle turning bluetooth adapter off/on
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
-
-            val bluetoothDevice =
-                intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
-
+            Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
             when (intent.action) {
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
-
+                    val bluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
-                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice == connectingDevice) {
+                    Log.d(tag, "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}")
+                    if (bondState in intArrayOf(BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_BONDING) && bluetoothDevice == connectingDevice) {
                         finalizeConnection(bluetoothDevice)
                     }
                 }
                 BluetoothDevice.ACTION_FOUND -> {
+                    val bluetoothDevice =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     synchronized(detectedDevicesMap) {
                         detectedDevicesMap.put(bluetoothDevice.address, bluetoothDevice)
                     }
                     deviceDiscoveryListener?.onDeviceDetected(bluetoothDevice)
                 }
-                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> deviceDiscoveryListener?.onDiscoveryStarted()
-                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> deviceDiscoveryListener?.onDiscoveryStopped()
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                    deviceDiscoveryListener?.onDiscoveryStarted()
+                }
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    deviceDiscoveryListener?.onDiscoveryStopped()
+                }
                 else -> {
                     Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
                 }
@@ -78,14 +86,10 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }
     }
 
-    inner class ClassicHidCallback(private var targetDevice: BluetoothDevice) : BluetoothHidDevice.Callback() {
+    val classicHidCallback = object : BluetoothHidDevice.Callback() {
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             super.onAppStatusChanged(pluggedDevice, registered)
             Log.i(tag, "ClassicHID app status changed device is $pluggedDevice registered $registered")
-
-            if (hidDevice?.connect(targetDevice) != true) {
-                fireDeviceConnectionErrorEvent(targetDevice, "Zjebało się")
-            }
 
         }
 
@@ -112,7 +116,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         override fun onGetReport(device: BluetoothDevice?, type: Byte, id: Byte, bufferSize: Int) {
             super.onGetReport(device, type, id, bufferSize)
             Log.i(tag, "ClassicHID onGetReport")
-            hidDevice?.replyReport(device, type, id, byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0))
+            hidDevice?.replyReport(device, type, id, ByteArray(8))
         }
 
         override fun onSetReport(device: BluetoothDevice?, type: Byte, id: Byte, data: ByteArray?) {
@@ -139,11 +143,12 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     override fun disconnect(device: BluetoothDevice) {
         synchronized(connectedDevicesMap) {
             connectedDevicesMap.remove(device.address)
-            if (hidDevice?.getConnectionState(device) != BluetoothProfile.STATE_DISCONNECTED) {
-                hidDevice?.disconnect(device)
-            }
-            fireDeviceDisconnectedEvent(device)
         }
+        if (hidDevice?.getConnectionState(device) != BluetoothProfile.STATE_DISCONNECTED) {
+            hidDevice?.disconnect(device)
+        }
+        fireDeviceDisconnectedEvent(device)
+
     }
 
     override fun deactivate() {
@@ -152,11 +157,21 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         for (device in hidDevice.connectedDevices) {
             hidDevice.disconnect(device)
         }
+        synchronized(connectedDevicesMap) {
+            connectedDevicesMap.clear()
+        }
         hidDevice.unregisterApp()
+        reportingTimer?.cancel()
+        applicationContext.unregisterReceiver(btReceiver)
     }
 
     fun connectToDevice(device: BluetoothDevice?) {
         if (device == null) {
+            return
+        }
+        val hidDevice = hidDevice
+        if (hidDevice == null) {
+            fireDeviceConnectionErrorEvent(device, "HID Device not initialized")
             return
         }
         synchronized(connectedDevicesMap) {
@@ -165,23 +180,29 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 return
             }
         }
+
+        for (connectedDevice in hidDevice.connectedDevices) {
+            if (connectedDevice.address != device.address) {
+                hidDevice.disconnect(connectedDevice)
+                synchronized(connectedDevicesMap) {
+                    connectedDevicesMap.remove(connectedDevice.address)
+                }
+                fireDeviceDisconnectedEvent(connectedDevice)
+            }
+        }
+
         stopScanning()
         connectingDevice = device
         fireDeviceConnectingEvent(device)
-        synchronized(detectedDevicesMap) {
-            if (detectedDevicesMap.isNotEmpty()) {
-                hidDevice?.unregisterApp()
-            }
+        if (!hidDevice.connect(device)) {
+            fireDeviceConnectionErrorEvent(device)
         }
-        // todo: this is dirty as Sasha Gray
-        handler.postDelayed({
-            setupHIDProfile(device)
-        }, 5000)
     }
 
-    private fun setupHIDProfile(device: BluetoothDevice) {
-//        hidDevice?.unregisterApp()
-//        hidDevice = null
+    private fun setupHIDProfile() {
+        if (hidDevice != null) {
+            throw IllegalStateException("HID Device seems to be already registered")
+        }
         Log.d(tag, "Setting up HID profile")
         bluetoothAdapter.getProfileProxy(applicationContext, object : BluetoothProfile.ServiceListener {
 
@@ -217,12 +238,12 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                     qusInSettings,
                     qosOutSettings,
                     applicationContext.mainExecutor,
-                    ClassicHidCallback(device)
+                    classicHidCallback
                 )
             }
 
             override fun onServiceDisconnected(p0: Int) {
-                Log.e("KURWA", "Status = $p0")
+                Log.wtf(tag, "Service disconnected")
                 hidDevice = null
             }
 
@@ -235,7 +256,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 Log.d(tag, "Already scanning, skipping")
                 return
             }
-            _isScanning = true
         }
         handler.postDelayed({
             Log.i(tag, "Stopping discovery after 20s.")
@@ -259,12 +279,12 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 Log.wtf(tag, "Cancel discovery failed :(")
             }
         }
-        _isScanning = false
     }
 
-    private fun startReportingNotifications(dataSendingRate: Long = 20) {
+    private fun startReportingNotifications(dataSendingRate: Long = 15) {
+        reportingTimer = Timer()
         // send report each dataSendingRate, if data available
-        Timer().scheduleAtFixedRate(object : TimerTask() {
+        reportingTimer!!.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
 
                 val polled = inputReportQueue.poll()

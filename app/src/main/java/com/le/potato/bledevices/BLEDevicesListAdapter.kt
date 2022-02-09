@@ -97,6 +97,18 @@ class BLEDevicesListAdapter(context: Context) :
         }
     }
 
+    fun removeDevice(deviceAddress: String) {
+        val index = mData.indexOfFirst { it.address == deviceAddress }
+        if (index >= 0) {
+            mData.removeAt(index)
+            notifyItemRemoved(index)
+        }
+    }
+
+    fun hasDevice(deviceAddress: String): Boolean {
+        return mData.indexOfFirst { it.address == deviceAddress } >= 0
+    }
+
     fun clear() {
         val size = mData.size
         if (size > 0) {

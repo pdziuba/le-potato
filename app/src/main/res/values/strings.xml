@@ -1,6 +1,8 @@
 <resources>
-    <string name="app_name">Le Potato</string>
+    <string name="app_name">El Potato</string>
+    <string name="connection_status">Connection status</string>
     <string name="button_keyboard">Keyboard</string>
+    <string name="bluetooth_settings">Bluetooth settings</string>
     <string name="touchpad">Touchpad</string>
     <string name="device_name">Device name</string>
     <string name="bluetooth_turned_on">Bluetooth turned on?</string>
@@ -8,12 +10,14 @@
     <string name="stop">Stop</string>
     <string name="scan">Scan</string>
     <string name="scanning">Scanning…</string>
-    <string name="status_idle">Waiting for connection</string>
+    <string name="status_idle">Not connected</string>
+    <string name="status_scanning">Discovering nearby devices…</string>
+    <string name="status_advertising">Waiting for incoming connection…</string>
     <string name="status_connecting">Connecting…</string>
     <string name="status_connected">Connected to device %1$s</string>
     <string name="advertise">Advertise</string>
     <string name="advertising">Advertising…</string>
-    <string name="found_devices">Found devices:</string>
+    <string name="found_devices">Discovered devices:</string>
     <string name="advertising_error">Advertising error</string>
     <string name="connection_error">Connection error</string>
     <string name="connection_error_details">Connection error: %1$s</string>
