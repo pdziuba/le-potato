@@ -63,7 +63,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         }
 
         override fun onDeviceDisconnected(device: BluetoothDevice) {
-            if (activeTransport == source) {
+            if (activeTransport == source || _connectingDevice == device) {
                 activeTransport = null
                 _connectingDevice = null
                 _connectedDevice = null

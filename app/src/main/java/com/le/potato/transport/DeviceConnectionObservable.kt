@@ -8,5 +8,5 @@ interface DeviceConnectionObservable {
     fun fireDeviceConnectedEvent(device: BluetoothDevice)
     fun fireDeviceDisconnectedEvent(device: BluetoothDevice)
     fun fireDeviceConnectingEvent(device: BluetoothDevice)
-    fun fireDeviceConnectionErrorEvent(device: BluetoothDevice, error: String?)
+    fun fireDeviceConnectionErrorEvent(device: BluetoothDevice, error: String? = null)
 }

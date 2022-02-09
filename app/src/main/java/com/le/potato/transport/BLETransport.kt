@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 const val ADVERTISE_TIMEOUT = 60000L
 
-class BLETransport: AbstractHIDTransport() {
+class BLETransport : AbstractHIDTransport() {
     private val tag = BLETransport::class.java.simpleName
     private val serviceSemaphore = Semaphore(1)
     private var _isAdvertising = false
@@ -34,6 +34,7 @@ class BLETransport: AbstractHIDTransport() {
     private var connectingDevice: BluetoothDevice? = null
     private val gattServiceHandlers: MutableList<GattServiceHandler> = ArrayList()
     var advertisingListener: AdvertisingListener? = null
+    private var reportingTimer: Timer? = null
     val isAdvertising: Boolean
         get() = _isAdvertising
 
@@ -70,7 +71,7 @@ class BLETransport: AbstractHIDTransport() {
                 addService(gattService)
             }
         }
-        startReportingNotifications(20)
+        startReportingNotifications()
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         context.registerReceiver(btReceiver, intentFilter)
@@ -80,13 +81,14 @@ class BLETransport: AbstractHIDTransport() {
         //todo: handle turning bluetooth adapter off/on
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
-
+            Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
             when (intent.action) {
                 BluetoothDevice.ACTION_BOND_STATE_CHANGED -> {
                     val bluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
-                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice == connectingDevice) {
+                    Log.d(tag, "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}")
+                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice.address == connectingDevice?.address) {
                         finalizeConnection(bluetoothDevice)
                     }
                 }
@@ -115,6 +117,7 @@ class BLETransport: AbstractHIDTransport() {
         stopAdvertising()
         applicationContext.unregisterReceiver(btReceiver)
         closeGattServer()
+        reportingTimer?.cancel()
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
@@ -123,7 +126,7 @@ class BLETransport: AbstractHIDTransport() {
             Log.i(tag, "Advertising started successfully :)")
             serviceSemaphore.release()
             advertisingListener?.onAdvertiseStarted()
-            handler.postDelayed( {
+            handler.postDelayed({
                 stopAdvertising()
             }, ADVERTISE_TIMEOUT)
         }
@@ -247,22 +250,14 @@ class BLETransport: AbstractHIDTransport() {
 
         override fun onCharacteristicWriteRequest(
             device: BluetoothDevice,
-            requestId: Int,
+            reqId: Int,
             characteristic: BluetoothGattCharacteristic,
-            preparedWrite: Boolean,
+            prepWrite: Boolean,
             responseNeeded: Boolean,
             offset: Int,
             value: ByteArray
         ) {
-            super.onCharacteristicWriteRequest(
-                device,
-                requestId,
-                characteristic,
-                preparedWrite,
-                responseNeeded,
-                offset,
-                value
-            )
+            super.onCharacteristicWriteRequest(device, reqId, characteristic, prepWrite, responseNeeded, offset, value)
             Log.d(
                 tag,
                 "onCharacteristicWriteRequest characteristic: ${characteristic.uuid}, value: ${value.contentToString()}"
@@ -272,9 +267,9 @@ class BLETransport: AbstractHIDTransport() {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onCharacteristicWriteRequest(
                             device,
-                            requestId,
+                            reqId,
                             characteristic,
-                            preparedWrite,
+                            prepWrite,
                             responseNeeded,
                             offset,
                             value,
@@ -289,34 +284,26 @@ class BLETransport: AbstractHIDTransport() {
 
         override fun onDescriptorWriteRequest(
             device: BluetoothDevice,
-            requestId: Int,
+            reqId: Int,
             descriptor: BluetoothGattDescriptor,
-            preparedWrite: Boolean,
+            prepWrite: Boolean,
             responseNeeded: Boolean,
             offset: Int,
             value: ByteArray
         ) {
-            super.onDescriptorWriteRequest(
-                device,
-                requestId,
-                descriptor,
-                preparedWrite,
-                responseNeeded,
-                offset,
-                value
-            )
+            super.onDescriptorWriteRequest(device, reqId, descriptor, prepWrite, responseNeeded, offset, value)
             Log.d(
                 tag,
-                "onDescriptorWriteRequest descriptor: ${descriptor.uuid}, value: ${value.contentToString()}, responseNeeded: $responseNeeded, preparedWrite: $preparedWrite"
+                "onDescriptorWriteRequest descriptor: ${descriptor.uuid}, value: ${value.contentToString()}, responseNeeded: $responseNeeded, preparedWrite: $prepWrite"
             )
             val gattServer = gattServer ?: return
             handler.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onDescriptorWriteRequest(
                             device,
-                            requestId,
+                            reqId,
                             descriptor,
-                            preparedWrite,
+                            prepWrite,
                             responseNeeded,
                             offset,
                             value,
@@ -432,9 +419,10 @@ class BLETransport: AbstractHIDTransport() {
         }
     }
 
-    private fun startReportingNotifications(dataSendingRate: Long) {
+    private fun startReportingNotifications(dataSendingRate: Long = 15) {
         // send report each dataSendingRate, if data available
-        Timer().scheduleAtFixedRate(object : TimerTask() {
+        reportingTimer = Timer()
+        reportingTimer!!.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 val gattServer = gattServer ?: return
                 for (gattHandler in gattServiceHandlers) {

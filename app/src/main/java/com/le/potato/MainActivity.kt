@@ -52,11 +52,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
             }
             service.registerDeviceConnectedListener(this@MainActivity)
             keyboardWithPointer.hidTransport = service
+            setStatusText()
         }
 
         override fun onServiceDisconnected(p0: ComponentName?) {
             keyboardWithPointer.hidTransport = null
         }
+    }
+
+    private fun setStatusText() {
+        val statusTextView = findViewById<TextView>(R.id.status_text)
+        StatusMixin.setStatusText(statusTextView, bluetoothService, this)
     }
 
     private val touchListener = object : View.OnTouchListener {
@@ -201,20 +207,20 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     override fun onDeviceConnected(device: BluetoothDevice) {
         runOnUiThread {
-            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_connected, device.name)
             findViewById<Button>(R.id.keyboard_button).isEnabled = true
+            setStatusText()
         }
     }
 
     override fun onDeviceConnecting(device: BluetoothDevice) {
         runOnUiThread {
-            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_connecting)
+            setStatusText()
         }
     }
 
     override fun onDeviceDisconnected(device: BluetoothDevice) {
         runOnUiThread {
-            findViewById<TextView>(R.id.status_text).text = getString(R.string.status_idle)
+            setStatusText()
             findViewById<Button>(R.id.keyboard_button).isEnabled = false
         }
     }

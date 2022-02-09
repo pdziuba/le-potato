@@ -27,7 +27,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     private var pairedDevicesListAdapter: BLEDevicesListAdapter? = null
     private var discoveredDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
-    private var bluetoothFacadeService: BluetoothFacadeService? = null
+    private var bluetoothService: BluetoothFacadeService? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +43,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         pairedDevicesListAdapter = BLEDevicesListAdapter(this)
         discoveredDevicesListAdapter = BLEDevicesListAdapter(this)
         configureDevicesList(findViewById(R.id.paired_devices), pairedDevicesListAdapter!!)
-        configureDevicesList(findViewById(R.id.found_devices), discoveredDevicesListAdapter!!)
+        configureDevicesList(findViewById(R.id.discovered_devices), discoveredDevicesListAdapter!!)
         val intent = Intent(this, BluetoothFacadeService::class.java)
         bindService(intent, object : ServiceConnection {
             override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
@@ -52,13 +52,13 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
                 service.advertisingListener = this@BluetoothStatusActivity
                 service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
                 service.deviceDiscoveryListener = this@BluetoothStatusActivity
-                bluetoothFacadeService = service
+                bluetoothService = service
                 loadBTDevicesState()
 
             }
 
             override fun onServiceDisconnected(p0: ComponentName?) {
-                bluetoothFacadeService = null
+                bluetoothService = null
             }
 
         }, BIND_AUTO_CREATE)
@@ -71,9 +71,9 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     }
 
     override fun onDestroy() {
-        bluetoothFacadeService?.unregisterDeviceConnectedListener(this)
-        bluetoothFacadeService?.deviceDiscoveryListener = null
-        bluetoothFacadeService?.advertisingListener = null
+        bluetoothService?.unregisterDeviceConnectedListener(this)
+        bluetoothService?.deviceDiscoveryListener = null
+        bluetoothService?.advertisingListener = null
         super.onDestroy()
     }
 
@@ -98,19 +98,19 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         super.onStop()
         pairedDevicesListAdapter?.clear()
         discoveredDevicesListAdapter?.clear()
+        findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.INVISIBLE
+        findViewById<TextView>(R.id.discovered_devices_text).visibility = View.INVISIBLE
     }
 
     private fun loadBluetoothStatus() {
         val bluetoothAdapter = bluetoothAdapter ?: return
-        val isBluetoothEnabled = bluetoothAdapter.isEnabled
         val deviceName = bluetoothAdapter.name
-        findViewById<CheckBox>(R.id.bluetooth_on_checkbox).isChecked = isBluetoothEnabled
         findViewById<TextView>(R.id.device_name_text).text = deviceName
     }
 
     private fun loadBTDevicesState() {
         val bluetoothAdapter = bluetoothAdapter ?: return
-        val bluetoothFacadeService = bluetoothFacadeService ?: return
+        val bluetoothFacadeService = bluetoothService ?: return
         for (device in bluetoothAdapter.bondedDevices) {
             val state = when {
                 (bluetoothFacadeService.connectedDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTED
@@ -122,7 +122,15 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
         if (bluetoothFacadeService.isAdvertising) {
             onAdvertiseStarted()
+        } else if (bluetoothFacadeService.isScanning) {
+            onDiscoveryStarted()
         }
+        setStatusText()
+    }
+
+    private fun setStatusText() {
+        val statusTextView = findViewById<TextView>(R.id.status_text2)
+        StatusMixin.setStatusText(statusTextView, bluetoothService, this)
     }
 
     inner class DeviceClickListener(private val adapter: BLEDevicesListAdapter) :
@@ -131,10 +139,10 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             val deviceWrapper = adapter.getItem(position)
             when (deviceWrapper.connectionState) {
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    bluetoothFacadeService?.connectToDevice(deviceWrapper.device)
+                    bluetoothService?.connectToDevice(deviceWrapper.device)
                 }
                 BluetoothProfile.STATE_CONNECTED -> {
-                    bluetoothFacadeService?.disconnect(deviceWrapper.device)
+                    bluetoothService?.disconnect(deviceWrapper.device)
                 }
             }
         }
@@ -143,6 +151,8 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
     override fun onDeviceDetected(device: BluetoothDevice) {
         runOnUiThread {
+            findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.VISIBLE
+            findViewById<TextView>(R.id.discovered_devices_text).visibility = View.VISIBLE
             discoveredDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
         }
     }
@@ -151,6 +161,8 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         runOnUiThread {
             findViewById<Button>(R.id.scan_button).text = getString(R.string.stop)
             findViewById<ProgressBar>(R.id.scan_spinner).visibility = View.VISIBLE
+            setAdvertisingEnabled(false)
+            setStatusText()
         }
     }
 
@@ -158,17 +170,23 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         runOnUiThread {
             findViewById<Button>(R.id.scan_button).text = getString(R.string.scan)
             findViewById<ProgressBar>(R.id.scan_spinner).visibility = View.INVISIBLE
+            setAdvertisingEnabled(true)
+            setStatusText()
         }
     }
 
     @Suppress("UNUSED_PARAMETER")
     fun onScanButtonClicked(view: View?) {
-        bluetoothFacadeService?.startScanning()
+        if (bluetoothService?.isScanning == true) {
+            bluetoothService?.stopScanning()
+        } else {
+            bluetoothService?.startScanning()
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")
     fun onAdvertiseButtonClicked(view: View?) {
-        val service = bluetoothFacadeService ?: return
+        val service = bluetoothService ?: return
 
         if (service.isAdvertising) {
             service.stopAdvertising()
@@ -182,6 +200,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             findViewById<ProgressBar>(R.id.advertise_spinner).visibility = View.VISIBLE
             findViewById<Button>(R.id.advertise_button).text = getString(R.string.stop)
             setScanningEnabled(false)
+            setStatusText()
         }
     }
 
@@ -190,6 +209,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             findViewById<ProgressBar>(R.id.advertise_spinner).visibility = View.INVISIBLE
             findViewById<Button>(R.id.advertise_button).text = getString(R.string.advertise)
             setScanningEnabled(true)
+            setStatusText()
         }
     }
 
@@ -205,17 +225,32 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         findViewById<Button>(R.id.scan_button).isEnabled = enabled
     }
 
+    private fun setAdvertisingEnabled(enabled: Boolean) {
+        findViewById<Button>(R.id.advertise_button).isEnabled = enabled
+    }
+
     override fun onDeviceConnected(device: BluetoothDevice) {
         runOnUiThread {
             Log.d(tag, "onDeviceConnected ${device.address}")
-            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+            if (pairedDevicesListAdapter?.hasDevice(device.address) == true) {
+                pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+            } else {
+                discoveredDevicesListAdapter?.removeDevice(device.address)
+                pairedDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTED))
+            }
+            setStatusText()
         }
     }
 
     override fun onDeviceConnecting(device: BluetoothDevice) {
         runOnUiThread {
             Log.d(tag, "onDeviceConnecting ${device.address}")
-            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+            if (pairedDevicesListAdapter?.hasDevice(device.address) == true) {
+                pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+            } else {
+                discoveredDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_CONNECTING))
+            }
+            setStatusText()
         }
     }
 
@@ -223,6 +258,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         runOnUiThread {
             Log.d(tag, "onDeviceDisconnected ${device.address}")
             pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            setStatusText()
         }
     }
 
@@ -233,6 +269,9 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             } else {
                 Toast.makeText(this, getString(R.string.connection_error_details, error), Toast.LENGTH_LONG).show()
             }
+            pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            discoveredDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            setStatusText()
         }
     }
 }

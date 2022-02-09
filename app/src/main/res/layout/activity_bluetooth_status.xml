@@ -6,15 +6,18 @@
     android:layout_height="match_parent"
     tools:context=".BluetoothStatusActivity">
 
-    <CheckBox
-        android:id="@+id/bluetooth_on_checkbox"
-        android:layout_width="wrap_content"
+    <TextView
+        android:id="@+id/status_text2"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="32dp"
-        android:clickable="false"
-        android:enabled="false"
-        app:layout_constraintBaseline_toBaselineOf="@+id/textView4"
-        app:layout_constraintStart_toEndOf="@+id/textView4" />
+        android:background="@color/design_default_color_primary"
+        android:padding="8dp"
+        android:text="@string/status_idle"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/textView3"
@@ -24,24 +27,15 @@
         android:layout_marginTop="16dp"
         android:text="@string/device_name"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView4" />
+        app:layout_constraintTop_toBottomOf="@+id/status_text2" />
 
     <TextView
         android:id="@+id/device_name_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
         app:layout_constraintBaseline_toBaselineOf="@+id/textView3"
-        app:layout_constraintStart_toStartOf="@+id/bluetooth_on_checkbox" />
-
-    <TextView
-        android:id="@+id/textView4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:text="@string/bluetooth_turned_on"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintStart_toEndOf="@+id/textView3" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/paired_devices"
@@ -60,77 +54,91 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="48dp"
         android:text="@string/paired_devices"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/advertise_button" />
 
     <Button
         android:id="@+id/scan_button"
-        android:layout_width="wrap_content"
+        android:layout_width="175dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
         android:onClick="onScanButtonClicked"
         android:text="@string/scan"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/paired_devices" />
+        app:layout_constraintBaseline_toBaselineOf="@+id/advertise_button"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <Button
         android:id="@+id/advertise_button"
-        android:layout_width="wrap_content"
+        android:layout_width="175dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:onClick="onAdvertiseButtonClicked"
         android:text="@string/advertise"
+        app:flow_firstVerticalBias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView3" />
 
+    <ProgressBar
+        android:id="@+id/advertise_spinner"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:elevation="10dp"
+        android:indeterminate="true"
+        android:visibility="invisible"
+        app:flow_firstVerticalBias="0.5"
+        app:layout_constraintBottom_toBottomOf="@+id/advertise_button"
+        app:layout_constraintEnd_toEndOf="@+id/advertise_button"
+        app:layout_constraintTop_toTopOf="@+id/advertise_button" />
+
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/found_devices"
+        android:id="@+id/discovered_devices"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHeight_min="30dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView" />
+        app:layout_constraintTop_toBottomOf="@+id/discovered_devices_text" />
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/discovered_devices_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:text="@string/found_devices"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/scan_button" />
-
-    <ProgressBar
-        android:id="@+id/advertise_spinner"
-        style="?android:attr/progressBarStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:indeterminate="true"
+        android:textStyle="bold"
         android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="@+id/advertise_button"
-        app:layout_constraintStart_toEndOf="@+id/advertise_button" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/paired_devices" />
+
 
     <ProgressBar
         android:id="@+id/scan_spinner"
         style="?android:attr/progressBarStyle"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="8dp"
+        android:elevation="10dp"
         android:indeterminate="true"
         android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="@+id/scan_button"
-        app:layout_constraintStart_toEndOf="@+id/scan_button" />
+        app:layout_constraintEnd_toEndOf="@+id/scan_button"
+        app:layout_constraintTop_toTopOf="@+id/scan_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
