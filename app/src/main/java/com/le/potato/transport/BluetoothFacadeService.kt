@@ -100,6 +100,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     }
 
     override fun onDestroy() {
+        Log.i(tag, "onDestroy called, deactivating transports")
         bleTransport.unregisterDeviceConnectedListener(bleListener)
         classicTransport.unregisterDeviceConnectedListener(classicListener)
         deactivate()

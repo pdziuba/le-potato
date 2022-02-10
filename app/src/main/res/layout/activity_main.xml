@@ -16,11 +16,26 @@
         android:enabled="false"
         android:focusable="true"
         android:focusableInTouchMode="true"
-        android:onClick="sendText"
+        android:onClick="onKeyboardButtonClicked"
         app:icon="@drawable/ic_baseline_keyboard_24"
         app:iconGravity="textStart"
         app:iconPadding="0dp"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/status_text" />
+
+    <Button
+        android:id="@+id/mouse_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:contentDescription="@string/button_mouse"
+        android:enabled="false"
+        android:onClick="onMouseButtonClicked"
+        app:icon="@drawable/ic_baseline_mouse_24"
+        app:iconGravity="textStart"
+        app:iconPadding="0dp"
+        app:layout_constraintStart_toEndOf="@+id/keyboard_button"
         app:layout_constraintTop_toBottomOf="@+id/status_text" />
 
     <Button
@@ -50,22 +65,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        android:id="@+id/touchpad"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        android:background="#8080DEEA"
-        android:gravity="center"
-        android:text="@string/touchpad"
-        android:textAlignment="center"
-        android:textColor="#455A64"
+        android:visibility="invisible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/keyboard_button" />
+
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

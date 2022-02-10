@@ -29,6 +29,25 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothService: BluetoothFacadeService? = null
 
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
+            val binder = _binder as BluetoothFacadeService.LocalBinder
+            val service = binder.getService()
+            service.advertisingListener = this@BluetoothStatusActivity
+            service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
+            service.deviceDiscoveryListener = this@BluetoothStatusActivity
+            service.init(this@BluetoothStatusActivity, KeyboardWithPointer.reportMap)
+            bluetoothService = service
+            loadBTDevicesState()
+
+        }
+
+        override fun onServiceDisconnected(p0: ComponentName?) {
+            bluetoothService = null
+        }
+
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_bluetooth_status)
@@ -44,24 +63,12 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         discoveredDevicesListAdapter = BLEDevicesListAdapter(this)
         configureDevicesList(findViewById(R.id.paired_devices), pairedDevicesListAdapter!!)
         configureDevicesList(findViewById(R.id.discovered_devices), discoveredDevicesListAdapter!!)
+    }
+
+    override fun onStart() {
+        super.onStart()
         val intent = Intent(this, BluetoothFacadeService::class.java)
-        bindService(intent, object : ServiceConnection {
-            override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
-                val binder = _binder as BluetoothFacadeService.LocalBinder
-                val service = binder.getService()
-                service.advertisingListener = this@BluetoothStatusActivity
-                service.registerDeviceConnectedListener(this@BluetoothStatusActivity)
-                service.deviceDiscoveryListener = this@BluetoothStatusActivity
-                bluetoothService = service
-                loadBTDevicesState()
-
-            }
-
-            override fun onServiceDisconnected(p0: ComponentName?) {
-                bluetoothService = null
-            }
-
-        }, BIND_AUTO_CREATE)
+        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
     }
 
     private fun configureDevicesList(recyclerView: RecyclerView, adapter: BLEDevicesListAdapter) {
@@ -100,6 +107,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         discoveredDevicesListAdapter?.clear()
         findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.INVISIBLE
         findViewById<TextView>(R.id.discovered_devices_text).visibility = View.INVISIBLE
+        unbindService(serviceConnection)
     }
 
     private fun loadBluetoothStatus() {
