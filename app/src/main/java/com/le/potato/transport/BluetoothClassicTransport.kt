@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.util.Log
 import com.le.potato.utils.bondStateLabels
+import com.le.potato.utils.connStateLabels
 import java.lang.IllegalStateException
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -60,8 +61,15 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                     val bluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
-                    Log.d(tag, "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}")
-                    if (bondState in intArrayOf(BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_BONDING) && bluetoothDevice == connectingDevice) {
+                    Log.d(
+                        tag,
+                        "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}"
+                    )
+                    if (bondState in intArrayOf(
+                            BluetoothDevice.BOND_BONDED,
+                            BluetoothDevice.BOND_BONDING
+                        ) && bluetoothDevice == connectingDevice
+                    ) {
                         finalizeConnection(bluetoothDevice)
                     }
                 }
@@ -96,10 +104,12 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         override fun onConnectionStateChanged(device: BluetoothDevice?, state: Int) {
             super.onConnectionStateChanged(device, state)
             if (device == null) return
-            Log.i(tag, "ClassicHID connection state changed state = $state")
+            Log.i(tag, "ClassicHID connection state changed state = ${connStateLabels[state]}")
             when (state) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    finalizeConnection(device)
+                    if (device.bondState == BluetoothDevice.BOND_BONDED) {
+                        finalizeConnection(device)
+                    }
                 }
                 BluetoothProfile.STATE_CONNECTING -> {
                     fireDeviceConnectingEvent(device)
@@ -154,13 +164,15 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     override fun deactivate() {
         stopScanning()
         val hidDevice = hidDevice ?: return
-        for (device in hidDevice.connectedDevices) {
-            hidDevice.disconnect(device)
+        handler.post {
+            for (device in hidDevice.connectedDevices) {
+                hidDevice.disconnect(device)
+            }
+            synchronized(connectedDevicesMap) {
+                connectedDevicesMap.clear()
+            }
+            hidDevice.unregisterApp()
         }
-        synchronized(connectedDevicesMap) {
-            connectedDevicesMap.clear()
-        }
-        hidDevice.unregisterApp()
         reportingTimer?.cancel()
         applicationContext.unregisterReceiver(btReceiver)
     }
@@ -180,22 +192,23 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 return
             }
         }
-
-        for (connectedDevice in hidDevice.connectedDevices) {
-            if (connectedDevice.address != device.address) {
-                hidDevice.disconnect(connectedDevice)
-                synchronized(connectedDevicesMap) {
-                    connectedDevicesMap.remove(connectedDevice.address)
+        handler.post {
+            for (connectedDevice in hidDevice.connectedDevices) {
+                if (connectedDevice.address != device.address) {
+                    hidDevice.disconnect(connectedDevice)
+                    synchronized(connectedDevicesMap) {
+                        connectedDevicesMap.remove(connectedDevice.address)
+                    }
+                    fireDeviceDisconnectedEvent(connectedDevice)
                 }
-                fireDeviceDisconnectedEvent(connectedDevice)
             }
-        }
 
-        stopScanning()
-        connectingDevice = device
-        fireDeviceConnectingEvent(device)
-        if (!hidDevice.connect(device)) {
-            fireDeviceConnectionErrorEvent(device)
+            stopScanning()
+            connectingDevice = device
+            fireDeviceConnectingEvent(device)
+            if (!hidDevice.connect(device)) {
+                fireDeviceConnectionErrorEvent(device)
+            }
         }
     }
 
@@ -204,35 +217,41 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             throw IllegalStateException("HID Device seems to be already registered")
         }
         Log.d(tag, "Setting up HID profile")
-        bluetoothAdapter.getProfileProxy(applicationContext, object : BluetoothProfile.ServiceListener {
+        handler.post {
+            bluetoothAdapter.getProfileProxy(applicationContext, hidServiceListener(), BluetoothProfile.HID_DEVICE)
+        }
+    }
 
-            override fun onServiceConnected(status: Int, btProfile: BluetoothProfile?) {
-                val hidProfile: BluetoothHidDevice = btProfile as BluetoothHidDevice
-                hidDevice = hidProfile
-                Log.i(tag, "Profile HID connected")
-                val sdpSettings = BluetoothHidDeviceAppSdpSettings(
-                    "KogucikHID",
-                    "OMG",
-                    "Przemo",
-                    BluetoothHidDevice.SUBCLASS1_COMBO,
-                    reportMap
-                )
-                val qusInSettings = BluetoothHidDeviceAppQosSettings(
-                    BluetoothHidDeviceAppQosSettings.SERVICE_GUARANTEED,
-                    0,
-                    0,
-                    0,
-                    -1,
-                    -1
-                )
-                val qosOutSettings = BluetoothHidDeviceAppQosSettings(
-                    BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
-                    800,
-                    9,
-                    0,
-                    11250,
-                    11250
-                )
+    private fun hidServiceListener() = object : BluetoothProfile.ServiceListener {
+
+        override fun onServiceConnected(status: Int, btProfile: BluetoothProfile?) {
+            val hidProfile: BluetoothHidDevice = btProfile as BluetoothHidDevice
+            hidDevice = hidProfile
+            Log.i(tag, "Profile HID connected")
+            val sdpSettings = BluetoothHidDeviceAppSdpSettings(
+                "KogucikHID",
+                "OMG",
+                "Przemo",
+                BluetoothHidDevice.SUBCLASS1_COMBO,
+                reportMap
+            )
+            val qusInSettings = BluetoothHidDeviceAppQosSettings(
+                BluetoothHidDeviceAppQosSettings.SERVICE_GUARANTEED,
+                0,
+                0,
+                0,
+                -1,
+                -1
+            )
+            val qosOutSettings = BluetoothHidDeviceAppQosSettings(
+                BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT,
+                800,
+                9,
+                0,
+                11250,
+                11250
+            )
+            handler.post {
                 hidProfile.registerApp(
                     sdpSettings,
                     qusInSettings,
@@ -241,13 +260,13 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                     classicHidCallback
                 )
             }
+        }
 
-            override fun onServiceDisconnected(p0: Int) {
-                Log.wtf(tag, "Service disconnected")
-                hidDevice = null
-            }
+        override fun onServiceDisconnected(p0: Int) {
+            Log.wtf(tag, "Service disconnected")
+            hidDevice = null
+        }
 
-        }, BluetoothProfile.HID_DEVICE)
     }
 
     fun startScanning() {
@@ -278,6 +297,10 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             if (!bluetoothAdapter.cancelDiscovery()) {
                 Log.wtf(tag, "Cancel discovery failed :(")
             }
+        }
+        while (isScanning) {
+            Log.i(tag, "Good ol' sleep until discovery is not turned off")
+            Thread.sleep(5000)
         }
     }
 
