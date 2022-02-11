@@ -40,16 +40,14 @@ class KeyboardWithPointer(private val context: Context) {
 
     private val lastSent = ByteArray(4)
 
+    private fun clamp(input: Int): Int {
+        return kotlin.math.max(-127, kotlin.math.min(127, input))
+    }
+
     fun movePointer(dx: Int, dy: Int, wheel: Int, leftButton: Boolean, rightButton: Boolean, middleButton: Boolean) {
-        var dx = dx
-        var dy = dy
-        var wheel = wheel
-        if (dx > 127) dx = 127
-        if (dx < -127) dx = -127
-        if (dy > 127) dy = 127
-        if (dy < -127) dy = -127
-        if (wheel > 127) wheel = 127
-        if (wheel < -127) wheel = -127
+        var dx = clamp(dx)
+        var dy = clamp(dy)
+        var wheel = clamp(wheel)
         var button = 0
         if (leftButton) {
             button = button or 1
@@ -61,7 +59,7 @@ class KeyboardWithPointer(private val context: Context) {
             button = button or 4
         }
         val report = ByteArray(5)
-        report[0] = (button and 7).toByte()
+        report[0] = button.toByte()
         report[1] = dx.toByte()
         report[2] = dy.toByte()
         report[3] = wheel.toByte()
