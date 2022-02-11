@@ -91,14 +91,26 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                 }
                 MotionEvent.ACTION_MOVE -> {
                     maxPointerCount = max(maxPointerCount, motionEvent.pointerCount)
-                    mouse.movePointer(
-                        (motionEvent.x - X).toInt(),
-                        (motionEvent.y - Y).toInt(),
-                        0,
-                        leftButton = false,
-                        rightButton = false,
-                        middleButton = false
-                    )
+                    val wheel = (0.25 * (motionEvent.y - Y)).toInt()
+                    if (maxPointerCount >= 2) {
+                        mouse.movePointer(
+                            0,
+                            0,
+                            wheel,
+                            leftButton = false,
+                            rightButton = false,
+                            middleButton = false
+                        )
+                    } else {
+                        mouse.movePointer(
+                            (motionEvent.x - X).toInt(),
+                            (motionEvent.y - Y).toInt(),
+                            0,
+                            leftButton = false,
+                            rightButton = false,
+                            middleButton = false
+                        )
+                    }
                     X = motionEvent.x
                     Y = motionEvent.y
                     return true
