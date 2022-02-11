@@ -109,8 +109,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                     Y = motionEvent.y
                     if ((X - firstX) * (X - firstX) + (Y - firstY) * (Y - firstY) < 20) {
                         val leftButton = maxPointerCount == 1
-                        val middleButton = maxPointerCount == 2
-                        val rightButton = maxPointerCount > 2
+                        val rightButton = maxPointerCount >= 2
 
                         mouse.movePointer(
                             (motionEvent.x - X).toInt(),
@@ -118,7 +117,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                             0,
                             leftButton = leftButton,
                             rightButton = rightButton,
-                            middleButton = middleButton
+                            middleButton = false
                         )
                         mouse.movePointer(
                             (motionEvent.x - X).toInt(),
@@ -292,9 +291,19 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
             R.id.key_f10 -> KeyEvent.KEYCODE_F10
             R.id.key_f11 -> KeyEvent.KEYCODE_F11
             R.id.key_f12 -> KeyEvent.KEYCODE_F12
+            R.id.key_insert -> KeyEvent.KEYCODE_INSERT
+            R.id.key_delete -> KeyEvent.KEYCODE_FORWARD_DEL
+            R.id.key_home -> KeyEvent.KEYCODE_HOME
+            R.id.key_end -> KeyEvent.KEYCODE_MOVE_END
+            R.id.key_page_up -> KeyEvent.KEYCODE_PAGE_UP
+            R.id.key_page_down -> KeyEvent.KEYCODE_PAGE_DOWN
+            R.id.key_left_arrow -> KeyEvent.KEYCODE_DPAD_LEFT
+            R.id.key_down_arrow -> KeyEvent.KEYCODE_DPAD_DOWN
+            R.id.key_right_arrow -> KeyEvent.KEYCODE_DPAD_RIGHT
+            R.id.key_up_arrow -> KeyEvent.KEYCODE_DPAD_UP
             else -> null
         }
-        Log.i(tag, "Key pressed $keyCode")
+        Log.d(tag, "Key pressed $keyCode")
         if (keyCode != null) {
             keyboardWithPointer.sendKeyDown(isCtrl = false, isShift = false, isAlt = false, keyCode = keyCode)
             keyboardWithPointer.sendKeyUp()

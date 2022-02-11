@@ -165,10 +165,10 @@ class KeyboardWithPointer(private val context: Context) {
             KeyEvent.KEYCODE_FORWARD_DEL to 0x4C,
             KeyEvent.KEYCODE_MOVE_END to 0x4D,
             KeyEvent.KEYCODE_PAGE_DOWN to 0x4E,
-            //RIGHT ARROW to 0x2E,
-            //LEFT ARROW to 0x2E,
-            //DOWN ARROW to 0x2E,
-            //UP to 0x2E,
+            KeyEvent.KEYCODE_DPAD_RIGHT to 0x4F,
+            KeyEvent.KEYCODE_DPAD_LEFT to 0x50,
+            KeyEvent.KEYCODE_DPAD_DOWN to 0x51,
+            KeyEvent.KEYCODE_DPAD_UP to 0x52,
         )
 
         /**

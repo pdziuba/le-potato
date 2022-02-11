@@ -7,11 +7,133 @@
     tools:context=".KeyboardFragment">
 
     <Button
+        android:id="@+id/key_up_arrow"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="↑"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_insert"
+        app:layout_constraintStart_toStartOf="@+id/key_down_arrow" />
+
+    <Button
+        android:id="@+id/key_right_arrow"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="→"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_down_arrow" />
+
+    <Button
+        android:id="@+id/key_down_arrow"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="↓"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_left_arrow" />
+
+    <Button
+        android:id="@+id/key_page_down"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="Page down"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_end" />
+
+    <Button
+        android:id="@+id/key_left_arrow"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="←"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_page_down" />
+
+    <Button
+        android:id="@+id/key_page_up"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="Page\nup"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_insert"
+        app:layout_constraintStart_toEndOf="@+id/key_home" />
+
+    <Button
+        android:id="@+id/key_home"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="Home"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_insert"
+        app:layout_constraintStart_toEndOf="@+id/key_insert" />
+
+    <Button
+        android:id="@+id/key_insert"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="16dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="Insert"
+        android:textSize="11sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/key_f7" />
+
+    <Button
+        android:id="@+id/key_end"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="End"
+        android:textSize="11sp"
+        app:layout_constraintBottom_toBottomOf="@+id/key_delete"
+        app:layout_constraintStart_toEndOf="@+id/key_delete" />
+
+    <Button
+        android:id="@+id/key_delete"
+        android:layout_width="55dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:onClick="onButtonPressed"
+        android:padding="0dp"
+        android:text="Delete"
+        android:textSize="11sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/key_insert" />
+
+    <Button
         android:id="@+id/key_f11"
         android:layout_width="55dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F11"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f7"
@@ -23,6 +145,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F12"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f7"
@@ -34,6 +157,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F10"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f7"
@@ -46,6 +170,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F7"
         android:textSize="11sp"
         app:layout_constraintStart_toStartOf="parent"
@@ -57,6 +182,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F8"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f7"
@@ -68,6 +194,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F9"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f7"
@@ -79,6 +206,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F2"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f1"
@@ -90,6 +218,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F3"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f1"
@@ -101,6 +230,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F4"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f1"
@@ -112,6 +242,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F5"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f1"
@@ -123,6 +254,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F6"
         android:textSize="11sp"
         app:layout_constraintBottom_toBottomOf="@+id/key_f1"
@@ -135,6 +267,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="16dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="Esc"
         android:textSize="11sp"
         app:layout_constraintStart_toStartOf="parent"
@@ -147,6 +280,7 @@
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
         android:onClick="onButtonPressed"
+        android:padding="0dp"
         android:text="F1"
         android:textSize="11sp"
         app:layout_constraintStart_toStartOf="parent"
