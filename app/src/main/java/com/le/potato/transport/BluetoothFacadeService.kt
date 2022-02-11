@@ -124,8 +124,10 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     }
 
     override fun deactivate() {
-        bleTransport.deactivate()
-        classicTransport.deactivate()
+        if (initialized) {
+            bleTransport.deactivate()
+            classicTransport.deactivate()
+        }
     }
 
     fun startScanning() {
