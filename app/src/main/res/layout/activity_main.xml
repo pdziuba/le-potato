@@ -31,6 +31,8 @@
         android:layout_marginTop="16dp"
         android:contentDescription="@string/button_mouse"
         android:enabled="false"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
         android:onClick="onMouseButtonClicked"
         app:icon="@drawable/ic_baseline_mouse_24"
         app:iconGravity="textStart"

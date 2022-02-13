@@ -155,10 +155,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         val keyboardButton = findViewById<Button>(R.id.keyboard_button)
         keyboardButton.setOnKeyListener(this)
         keyboardButton.setOnFocusChangeListener { v, hasFocus ->
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             if (hasFocus) {
                 replaceInputFragment(0)
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
+            } else {
+                imm.hideSoftInputFromWindow(v.applicationWindowToken, 0)
+            }
+        }
+        findViewById<Button>(R.id.mouse_button).setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                replaceInputFragment(1)
             }
         }
     }
@@ -237,12 +244,15 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     fun onMouseButtonClicked(view: View) {
         replaceInputFragment(1)
+        view.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view.applicationWindowToken, 0)
     }
 
     fun showBluetoothStatus(view: View) {
         startActivity(Intent(view.context, BluetoothStatusActivity::class.java))
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.applicationWindowToken, 0)
     }
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
