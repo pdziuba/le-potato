@@ -49,9 +49,10 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
             val service = binder.getService()
 
             bluetoothService = service
-            val devices = service.devices
-            if (devices.isNotEmpty()) {
-                onDeviceConnected(devices.first())
+            if (service.connectedDevice != null) {
+                onDeviceConnected(service.connectedDevice!!)
+            } else {
+                disableInputs()
             }
             service.registerDeviceConnectedListener(this@MainActivity)
             keyboardWithPointer.hidTransport = service
@@ -245,10 +246,20 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
-        if (event?.action == KeyEvent.ACTION_DOWN) {
-            keyboardWithPointer.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
-        } else {
-            keyboardWithPointer.sendKeyUp()
+        when (event?.action) {
+            KeyEvent.ACTION_DOWN -> {
+                Log.d(tag, "ACTION_DOWN ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode")
+                keyboardWithPointer.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
+            }
+            KeyEvent.ACTION_UP -> {
+                Log.d(tag, "ACTION_UP ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode")
+                keyboardWithPointer.sendKeyUp(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
+            }
+            else -> {
+                // todo: handle ogonki
+                Log.d(tag, "Unhandled action ${event?.action}")
+                return false
+            }
         }
         return true
     }
@@ -269,6 +280,10 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     override fun onDeviceDisconnected(device: BluetoothDevice) {
+        disableInputs()
+    }
+
+    private fun disableInputs() {
         runOnUiThread {
             setStatusText()
             findViewById<Button>(R.id.keyboard_button).isEnabled = false
@@ -318,7 +333,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         Log.d(tag, "Key pressed $keyCode")
         if (keyCode != null) {
             keyboardWithPointer.sendKeyDown(isCtrl = false, isShift = false, isAlt = false, keyCode = keyCode)
-            keyboardWithPointer.sendKeyUp()
+            keyboardWithPointer.sendKeyUp(isCtrl = false, isShift = false, isAlt = false, keyCode)
         }
     }
 }

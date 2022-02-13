@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">El Potato</string>
+    <string name="connection_status">Stan połączenia</string>
+    <string name="button_keyboard">Klawiatura</string>
+    <string name="button_mouse">Myszka</string>
+    <string name="bluetooth_settings">Ustawienia bluetooth</string>
+    <string name="touchpad">Touchpad</string>
+    <string name="device_name">Nazwa urządzenia</string>
+    <string name="bluetooth_turned_on">Bluetooth włączony?</string>
+    <string name="paired_devices">Sparowane urządzenia:</string>
+    <string name="stop">Stop</string>
+    <string name="scan">Skanuj</string>
+    <string name="scanning">Skanowanie…</string>
+    <string name="status_idle">Brak połączenia</string>
+    <string name="status_scanning">Wyszukiwanie pobliskich urządzeń…</string>
+    <string name="status_advertising">Oczekiwanie na połączenie przychodzące…</string>
+    <string name="status_connecting">Łączenie…</string>
+    <string name="status_connected">Połączono z urządzeniem %1$s</string>
+    <string name="advertise">Rozgłaszaj</string>
+    <string name="advertising">Rozgłaszanie…</string>
+    <string name="found_devices">Wykryte urządzenia:</string>
+    <string name="advertising_error">Błąd rozgłaszania</string>
+    <string name="connection_error">Błąd połączenia</string>
+    <string name="connection_error_details">Błąd połączenia: %1$s</string>
+</resources>
