@@ -23,5 +23,4 @@
     <string name="connection_error">Connection error</string>
     <string name="connection_error_details">Connection error: %1$s</string>
     <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

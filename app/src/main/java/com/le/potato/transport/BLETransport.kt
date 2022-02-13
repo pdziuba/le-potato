@@ -40,17 +40,13 @@ class BLETransport : AbstractHIDTransport() {
 
     override fun init(context: Context, reportMap: ByteArray) {
         super.init(context, reportMap)
-        Log.d(
-            tag,
-            "isMultipleAdvertisementSupported:" + bluetoothAdapter.isMultipleAdvertisementSupported
-        )
-        if (!bluetoothAdapter.isMultipleAdvertisementSupported) {
+           if (!bluetoothAdapter!!.isMultipleAdvertisementSupported) {
             throw UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.")
         }
-        bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
+        bluetoothLeAdvertiser = bluetoothAdapter!!.bluetoothLeAdvertiser
             ?: throw UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.")
 
-        gattServer = bluetoothManager.openGattServer(applicationContext, GattServerCallback())
+        gattServer = bluetoothManager!!.openGattServer(applicationContext, GattServerCallback())
             ?: throw UnsupportedOperationException("gattServer is null, check Bluetooth is ON.")
 
 
@@ -115,7 +111,7 @@ class BLETransport : AbstractHIDTransport() {
 
     override fun deactivate() {
         stopAdvertising()
-        applicationContext.unregisterReceiver(btReceiver)
+        applicationContext?.unregisterReceiver(btReceiver)
         closeGattServer()
         reportingTimer?.cancel()
     }
@@ -126,7 +122,7 @@ class BLETransport : AbstractHIDTransport() {
             Log.i(tag, "Advertising started successfully :)")
             serviceSemaphore.release()
             advertisingListener?.onAdvertiseStarted()
-            handler.postDelayed({
+            handler?.postDelayed({
                 stopAdvertising()
             }, ADVERTISE_TIMEOUT)
         }
@@ -195,7 +191,7 @@ class BLETransport : AbstractHIDTransport() {
                 "onCharacteristicReadRequest characteristic: ${characteristic.uuid}, offset: $offset"
             )
             val gattServer = gattServer ?: return
-            handler.post {
+            handler?.post {
                 var handled = false
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onCharacteristicReadRequest(
@@ -238,7 +234,7 @@ class BLETransport : AbstractHIDTransport() {
                 "onDescriptorReadRequest requestId: " + requestId + ", offset: " + offset + ", descriptor: " + descriptor.uuid
             )
             val gattServer = gattServer ?: return
-            handler.post {
+            handler?.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onDescriptorReadRequest(device, requestId, offset, descriptor, gattServer)) {
                         descriptorsRead = true
@@ -263,7 +259,7 @@ class BLETransport : AbstractHIDTransport() {
                 "onCharacteristicWriteRequest characteristic: ${characteristic.uuid}, value: ${value.contentToString()}"
             )
             val gattServer = gattServer ?: return
-            handler.post {
+            handler?.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onCharacteristicWriteRequest(
                             device,
@@ -297,7 +293,7 @@ class BLETransport : AbstractHIDTransport() {
                 "onDescriptorWriteRequest descriptor: ${descriptor.uuid}, value: ${value.contentToString()}, responseNeeded: $responseNeeded, preparedWrite: $prepWrite"
             )
             val gattServer = gattServer ?: return
-            handler.post {
+            handler?.post {
                 for (gattHandler in gattServiceHandlers) {
                     if (gattHandler.onDescriptorWriteRequest(
                             device,
@@ -339,7 +335,7 @@ class BLETransport : AbstractHIDTransport() {
         var serviceAdded = false
         var tries = 0
 
-        handler.post {
+        handler?.post {
             if (serviceSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 while (!serviceAdded && tries < 3) {
                     serviceAdded = gattServer!!.addService(service)
@@ -364,7 +360,7 @@ class BLETransport : AbstractHIDTransport() {
             }
         }
 
-        handler.post { // set up advertising setting
+        handler?.post { // set up advertising setting
             if (!serviceSemaphore.tryAcquire(10, TimeUnit.SECONDS)) {
                 throw java.lang.IllegalStateException("Cannot obtain semaphore to start advertising")
             }
@@ -408,7 +404,7 @@ class BLETransport : AbstractHIDTransport() {
             Log.d(tag, "No advertising, ignoring")
             return
         }
-        handler.post {
+        handler?.post {
             try {
                 bluetoothLeAdvertiser?.stopAdvertising(advertiseCallback)
                 _isAdvertising = false
@@ -429,7 +425,7 @@ class BLETransport : AbstractHIDTransport() {
                     val (inputReportCharacteristic, polled) = gattHandler.pollInputReportQueue()
                     if (polled != null && inputReportCharacteristic != null) {
                         //todo: wait for notificationSent callback in gattServerCallback
-                        handler.post {
+                        handler?.post {
                             val devices = devices
                             if (devices.isEmpty()) {
                                 Log.d(tag, "No devices to send notification")
@@ -460,7 +456,7 @@ class BLETransport : AbstractHIDTransport() {
 
     private fun closeGattServer() {
         val gattServer = gattServer ?: return
-        handler.post {
+        handler?.post {
             try {
                 for (device in devices) {
                     gattServer.cancelConnection(device)

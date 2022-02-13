@@ -16,26 +16,48 @@ class KeyboardWithPointer(private val context: Context) {
         }
 
     private fun addInputReport(reportId: Int, report: ByteArray) {
-        hidTransport?.addInputReport(reportId, report)
+        Log.d("addInputReport", report.joinToString { "%02X".format(it) })
+        hidTransport?.addInputReport(reportId, report.clone())
     }
 
     fun sendKeyDown(isCtrl: Boolean, isShift: Boolean, isAlt: Boolean, keyCode: Int) {
         if (!eventKeycodeToReportMap.containsKey(keyCode)) {
-            Log.i(TAG, "Unknown keycode $keyCode")
+            Log.d(TAG, "Unknown keycode $keyCode")
             return
         }
         val report = ByteArray(8)
+        setModifierField(isCtrl, isShift, isAlt, report)
+        if (report[KEY_PACKET_MODIFIER_KEY_INDEX] != MODIFIER_KEY_NONE.toByte()) {
+            addInputReport(1, report)
+        }
+        report[KEY_PACKET_KEY_INDEX] = eventKeycodeToReportMap[keyCode]!!.toByte()
+        addInputReport(1, report)
+    }
+
+    private fun setModifierField(
+        isCtrl: Boolean,
+        isShift: Boolean,
+        isAlt: Boolean,
+        report: ByteArray
+    ) {
         var modifier = MODIFIER_KEY_NONE
         if (isCtrl) modifier = modifier or MODIFIER_KEY_CTRL
         if (isShift) modifier = modifier or MODIFIER_KEY_SHIFT
         if (isAlt) modifier = modifier or MODIFIER_KEY_ALT
         report[KEY_PACKET_MODIFIER_KEY_INDEX] = modifier.toByte()
-        report[KEY_PACKET_KEY_INDEX] = eventKeycodeToReportMap[keyCode]!!.toByte()
-        addInputReport(1, report)
     }
 
-    fun sendKeyUp() {
-        addInputReport(1, EMPTY_KEYBOARD_REPORT)
+    fun sendKeyUp(isCtrl: Boolean, isShift: Boolean, isAlt: Boolean, keyCode: Int) {
+        if (!eventKeycodeToReportMap.containsKey(keyCode)) {
+            Log.d(TAG, "Unknown keycode $keyCode")
+            return
+        }
+        val report = ByteArray(8)
+        setModifierField(isCtrl, isShift, isAlt, report)
+        addInputReport(1, report)
+        if (report[KEY_PACKET_MODIFIER_KEY_INDEX] != MODIFIER_KEY_NONE.toByte()) {
+            addInputReport(1, EMPTY_KEYBOARD_REPORT)
+        }
     }
 
     private val lastSent = ByteArray(4)
@@ -45,9 +67,9 @@ class KeyboardWithPointer(private val context: Context) {
     }
 
     fun movePointer(dx: Int, dy: Int, wheel: Int, leftButton: Boolean, rightButton: Boolean, middleButton: Boolean) {
-        var dx = clamp(dx)
-        var dy = clamp(dy)
-        var wheel = clamp(wheel)
+        val dx = clamp(dx)
+        val dy = clamp(dy)
+        val wheel = clamp(wheel)
         var button = 0
         if (leftButton) {
             button = button or 1
@@ -154,9 +176,7 @@ class KeyboardWithPointer(private val context: Context) {
             KeyEvent.KEYCODE_F10 to 0x43,
             KeyEvent.KEYCODE_F11 to 0x44,
             KeyEvent.KEYCODE_F12 to 0x45,
-            //PRINT SCREEN? to 0x46,
             KeyEvent.KEYCODE_SCROLL_LOCK to 0x47,
-            //PAUSE? to 0x48,
             KeyEvent.KEYCODE_INSERT to 0x49,
             KeyEvent.KEYCODE_HOME to 0x4A,
             KeyEvent.KEYCODE_PAGE_UP to 0x4B,

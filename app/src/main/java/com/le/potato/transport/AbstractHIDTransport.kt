@@ -6,8 +6,6 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Handler
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashSet
 
 open class DeviceConnectedSubject: DeviceConnectionObservable {
     private val deviceConnectedListeners: MutableSet<DeviceConnectedListener> = HashSet()
@@ -38,21 +36,20 @@ open class DeviceConnectedSubject: DeviceConnectionObservable {
 }
 
 abstract class AbstractHIDTransport(subject: DeviceConnectedSubject = DeviceConnectedSubject()): HIDTransport, DeviceConnectionObservable by subject {
-    protected lateinit var applicationContext: Context
-    protected lateinit var reportMap: ByteArray
-    protected lateinit var bluetoothAdapter: BluetoothAdapter
-    protected lateinit var bluetoothManager: BluetoothManager
-    protected lateinit var handler: Handler
+    protected var applicationContext: Context? = null
+    protected var reportMap: ByteArray? = null
+    protected var bluetoothAdapter: BluetoothAdapter? = null
+    protected var bluetoothManager: BluetoothManager? = null
+    protected var handler: Handler? = null
     protected val connectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
 
 
     override fun init(context: Context, reportMap: ByteArray) {
         this.applicationContext = context
         this.reportMap = reportMap
-        handler = Handler(applicationContext.mainLooper)
-        bluetoothManager =
-            applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothAdapter = bluetoothManager.adapter
+        handler = Handler(context.mainLooper)
+        bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager!!.adapter
             ?: throw UnsupportedOperationException("Bluetooth is not available.")
     }
 

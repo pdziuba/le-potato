@@ -29,7 +29,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     private var reportingTimer: Timer? = null
 
     val isScanning: Boolean
-        get() = bluetoothAdapter.isDiscovering
+        get() = bluetoothAdapter?.isDiscovering ?: false
 
     private fun finalizeConnection(device: BluetoothDevice) {
         synchronized(connectedDevicesMap) {
@@ -164,7 +164,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     override fun deactivate() {
         stopScanning()
         val hidDevice = hidDevice ?: return
-        handler.post {
+        handler?.post {
             for (device in hidDevice.connectedDevices) {
                 hidDevice.disconnect(device)
             }
@@ -174,7 +174,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             hidDevice.unregisterApp()
         }
         reportingTimer?.cancel()
-        applicationContext.unregisterReceiver(btReceiver)
+        applicationContext?.unregisterReceiver(btReceiver)
     }
 
     fun connectToDevice(device: BluetoothDevice?) {
@@ -192,7 +192,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 return
             }
         }
-        handler.post {
+        handler?.post {
             for (connectedDevice in hidDevice.connectedDevices) {
                 if (connectedDevice.address != device.address) {
                     hidDevice.disconnect(connectedDevice)
@@ -217,8 +217,8 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             throw IllegalStateException("HID Device seems to be already registered")
         }
         Log.d(tag, "Setting up HID profile")
-        handler.post {
-            bluetoothAdapter.getProfileProxy(applicationContext, hidServiceListener(), BluetoothProfile.HID_DEVICE)
+        handler?.post {
+            bluetoothAdapter?.getProfileProxy(applicationContext, hidServiceListener(), BluetoothProfile.HID_DEVICE)
         }
     }
 
@@ -251,12 +251,12 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 11250,
                 11250
             )
-            handler.post {
+            handler?.post {
                 hidProfile.registerApp(
                     sdpSettings,
                     qusInSettings,
                     qosOutSettings,
-                    applicationContext.mainExecutor,
+                    applicationContext!!.mainExecutor,
                     classicHidCallback
                 )
             }
@@ -276,13 +276,13 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 return
             }
         }
-        handler.postDelayed({
+        handler?.postDelayed({
             Log.i(tag, "Stopping discovery after 20s.")
             stopScanning()
         }, 20000)
-        handler.post {
+        handler?.post {
             Log.d(tag, "startScanning")
-            if (!bluetoothAdapter.startDiscovery()) {
+            if (!bluetoothAdapter!!.startDiscovery()) {
                 Log.wtf(tag, "Start discovery failed!")
             }
         }
@@ -292,9 +292,9 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         if (!isScanning) {
             return
         }
-        handler.post {
+        handler?.post {
             Log.d(tag, "stopScanning")
-            if (!bluetoothAdapter.cancelDiscovery()) {
+            if (!bluetoothAdapter!!.cancelDiscovery()) {
                 Log.wtf(tag, "Cancel discovery failed :(")
             }
         }
@@ -312,7 +312,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
 
                 val polled = inputReportQueue.poll()
                 if (polled != null) {
-                    handler.post {
+                    handler?.post {
                         val devices = devices
                         if (devices.isEmpty()) {
                             Log.d(tag, "No devices to send notification")
