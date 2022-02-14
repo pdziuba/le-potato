@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.ProgressBar
 import com.le.potato.R
@@ -14,7 +15,7 @@ import com.le.potato.R
 import android.widget.TextView
 
 
-class BLEDevicesListAdapter(context: Context) :
+class BLEDevicesListAdapter(private var context: Context) :
     RecyclerView.Adapter<BLEDevicesListAdapter.ViewHolder>() {
     private var mData: MutableList<BTDeviceWrapper> = ArrayList()
     private val mInflater: LayoutInflater = LayoutInflater.from(context)
@@ -26,12 +27,15 @@ class BLEDevicesListAdapter(context: Context) :
         var deviceName: TextView? = null
         var connectionProgressBar: ProgressBar? = null
         var statusIcon: ImageView? = null
+        var button: Button? = null
 
         init {
             deviceName = itemView.findViewById(R.id.device_name_text)
             connectionProgressBar = itemView.findViewById(R.id.connection_spinner)
             statusIcon = itemView.findViewById(R.id.status_icon)
+            button = itemView.findViewById(R.id.device_action_button)
             itemView.setOnClickListener(this)
+            button?.setOnClickListener(this)
         }
 
         override fun onClick(view: View?) {
@@ -56,19 +60,24 @@ class BLEDevicesListAdapter(context: Context) :
         when (dev.connectionState) {
             BluetoothProfile.STATE_CONNECTING -> {
                 holder.connectionProgressBar?.visibility = View.VISIBLE
-                holder.statusIcon?.visibility = View.INVISIBLE
+                holder.statusIcon?.visibility = View.GONE
+                holder.button?.text = context.getText(R.string.status_connecting)
+                holder.button?.isEnabled = false
             }
             BluetoothProfile.STATE_DISCONNECTED -> {
-                holder.connectionProgressBar?.visibility = View.INVISIBLE
+                holder.connectionProgressBar?.visibility = View.GONE
                 holder.statusIcon?.visibility = View.VISIBLE
                 holder.statusIcon?.setImageResource(R.drawable.ic_plug_in)
+                holder.button?.text = context.getText(R.string.connect)
+                holder.button?.isEnabled = true
             }
             else -> {
-                holder.connectionProgressBar?.visibility = View.INVISIBLE
+                holder.connectionProgressBar?.visibility = View.GONE
                 holder.statusIcon?.visibility = View.VISIBLE
                 holder.statusIcon?.setImageResource(R.drawable.ic_baseline_done_24)
+                holder.button?.text = context.getText(R.string.disconnect)
+                holder.button?.isEnabled = true
             }
-
         }
     }
 

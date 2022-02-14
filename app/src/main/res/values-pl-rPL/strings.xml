@@ -25,4 +25,6 @@
     <string name="connection_error_details">Błąd połączenia: %1$s</string>
     <string name="bluetooth_disabled_error">Aplikacja do prawidłowego działania potrzebuje włączonego adaptera bluetooth</string>
     <string name="bluetooth_disabled">Adapter bluetooth jest wyłączony</string>
+    <string name="connect">Połącz</string>
+    <string name="disconnect">Rozłącz</string>
 </resources>
