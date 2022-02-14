@@ -75,7 +75,6 @@ class BLETransport : AbstractHIDTransport() {
     }
 
     private val btReceiver = object : BroadcastReceiver() {
-        //todo: handle turning bluetooth adapter off/on
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
             Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
@@ -385,8 +384,6 @@ class BLETransport : AbstractHIDTransport() {
                 .setIncludeTxPowerLevel(false)
                 .setIncludeDeviceName(false)
 
-            // todo: payload is limited to 31 bytes if device name is too long this will explode with power of 1000 suns
-            //  we may want to truncate device name somehow or prompt the user
             val scanResultBuilder = AdvertiseData.Builder()
                 .setIncludeDeviceName(true)
                 .setIncludeTxPowerLevel(false)
