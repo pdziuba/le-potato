@@ -22,5 +22,7 @@
     <string name="advertising_error">Advertising error</string>
     <string name="connection_error">Connection error</string>
     <string name="connection_error_details">Connection error: %1$s</string>
+    <string name="bluetooth_disabled_error">Application needs bluetooth adapter turned on to work correctly</string>
+    <string name="bluetooth_disabled">Bluetooth adapter is turned off</string>
     <!-- TODO: Remove or change this placeholder text -->
 </resources>

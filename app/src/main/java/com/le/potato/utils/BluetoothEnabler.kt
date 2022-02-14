@@ -7,6 +7,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContract
+import com.le.potato.R
 
 object BluetoothEnabler {
     class EnableBluetoothContract :
@@ -24,8 +25,7 @@ object BluetoothEnabler {
     fun enableBluetoothOrFinish(activity: ComponentActivity) {
         val enableBluetoothActivity = activity.registerForActivityResult(EnableBluetoothContract()) { enabled ->
             if (enabled == Activity.RESULT_CANCELED) {
-                Toast.makeText(activity, "Nah! I can't do my job without bluetooth enabled", Toast.LENGTH_SHORT).show()
-                activity.finish()
+                Toast.makeText(activity, activity.getString(R.string.bluetooth_disabled_error), Toast.LENGTH_SHORT).show()
             }
         }
         enableBluetoothActivity.launch(Unit)

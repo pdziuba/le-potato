@@ -1,12 +1,10 @@
 package com.le.potato
 
 import android.Manifest.permission.*
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.os.Build
 import android.os.Bundle
@@ -32,8 +30,9 @@ import kotlin.math.max
 
 class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
     private val tag = MainActivity::class.java.simpleName
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothService: BluetoothFacadeService? = null
-    private val keyboardWithPointer: KeyboardWithPointer = KeyboardWithPointer(this)
+    private val keyboardWithPointer: KeyboardWithPointer = KeyboardWithPointer()
     private var requestPermissionsLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             if (!it) {
@@ -55,6 +54,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                 disableInputs()
             }
             service.registerDeviceConnectedListener(this@MainActivity)
+            service.init(this@MainActivity, KeyboardWithPointer.reportMap)
             keyboardWithPointer.hidTransport = service
             setStatusText()
         }
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     private fun setStatusText() {
         val statusTextView = findViewById<TextView>(R.id.status_text)
-        StatusMixin.setStatusText(statusTextView, bluetoothService, this)
+        StatusMixin.setStatusText(statusTextView, bluetoothService, bluetoothAdapter, this)
     }
 
     val touchListener = object : View.OnTouchListener {
@@ -152,6 +152,8 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
         val keyboardButton = findViewById<Button>(R.id.keyboard_button)
         keyboardButton.setOnKeyListener(this)
         keyboardButton.setOnFocusChangeListener { v, hasFocus ->
@@ -168,6 +170,9 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                 replaceInputFragment(1)
             }
         }
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(btReceiver, intentFilter)
     }
 
     override fun onStart() {
@@ -177,14 +182,11 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         if (btManager.adapter?.isEnabled == false) {
             BluetoothEnabler.enableBluetoothOrFinish(this)
         }
-        val intent = Intent(this, BluetoothFacadeService::class.java)
-
-        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+        bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
         super.onStop()
-        Log.i(tag, "MainActivity onStop called")
         bluetoothService?.unregisterDeviceConnectedListener(this)
         unbindService(serviceConnection)
     }
@@ -258,11 +260,17 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     override fun onKey(view: View?, keyCode: Int, event: KeyEvent?): Boolean {
         when (event?.action) {
             KeyEvent.ACTION_DOWN -> {
-                Log.d(tag, "ACTION_DOWN ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode")
+                Log.d(
+                    tag,
+                    "ACTION_DOWN ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode"
+                )
                 keyboardWithPointer.sendKeyDown(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
             }
             KeyEvent.ACTION_UP -> {
-                Log.d(tag, "ACTION_UP ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode")
+                Log.d(
+                    tag,
+                    "ACTION_UP ctrl = ${event.isCtrlPressed} shift = ${event.isShiftPressed} alt = ${event.isAltPressed} code = $keyCode"
+                )
                 keyboardWithPointer.sendKeyUp(event.isCtrlPressed, event.isShiftPressed, event.isAltPressed, keyCode)
             }
             else -> {
@@ -314,7 +322,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     @Suppress("UNUSED_PARAMETER")
     fun onButtonPressed(view: View) {
-        val keyCode = when(view.id) {
+        val keyCode = when (view.id) {
             R.id.key_esc -> KeyEvent.KEYCODE_ESCAPE
             R.id.key_f1 -> KeyEvent.KEYCODE_F1
             R.id.key_f2 -> KeyEvent.KEYCODE_F2
@@ -344,6 +352,23 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         if (keyCode != null) {
             keyboardWithPointer.sendKeyDown(isCtrl = false, isShift = false, isAlt = false, keyCode = keyCode)
             keyboardWithPointer.sendKeyUp(isCtrl = false, isShift = false, isAlt = false, keyCode)
+        }
+    }
+
+    private val btReceiver = object: BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)) {
+                    BluetoothAdapter.STATE_OFF -> {
+                        disableInputs()
+                    }
+                    BluetoothAdapter.STATE_ON -> {
+                        setStatusText()
+                    }
+                }
+            }
         }
     }
 }

@@ -23,7 +23,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     private val tag = BluetoothClassicTransport::class.java.simpleName
     private var connectingDevice: BluetoothDevice? = null
     private var hidDevice: BluetoothHidDevice? = null
-    private val detectedDevicesMap: MutableMap<String, BluetoothDevice> = HashMap()
     var deviceDiscoveryListener: DeviceDiscoveryListener? = null
     private val inputReportQueue: Queue<Pair<Int, ByteArray>> = ConcurrentLinkedQueue()
     private var reportingTimer: Timer? = null
@@ -52,7 +51,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     }
 
     private val btReceiver = object : BroadcastReceiver() {
-        //todo: handle turning bluetooth adapter off/on
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent == null) return
             Log.d(tag, "Received action ${intent.action} with extras ${intent.extras}")
@@ -76,9 +74,6 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 BluetoothDevice.ACTION_FOUND -> {
                     val bluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
-                    synchronized(detectedDevicesMap) {
-                        detectedDevicesMap.put(bluetoothDevice.address, bluetoothDevice)
-                    }
                     deviceDiscoveryListener?.onDeviceDetected(bluetoothDevice)
                 }
                 BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
@@ -270,16 +265,11 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     }
 
     fun startScanning() {
-        synchronized(detectedDevicesMap) {
-            if (isScanning) {
-                Log.d(tag, "Already scanning, skipping")
-                return
-            }
+        if (isScanning) {
+            Log.d(tag, "Already scanning, skipping")
+            return
         }
-        handler?.postDelayed({
-            Log.i(tag, "Stopping discovery after 20s.")
-            stopScanning()
-        }, 20000)
+
         handler?.post {
             Log.d(tag, "startScanning")
             if (!bluetoothAdapter!!.startDiscovery()) {
@@ -289,18 +279,11 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     }
 
     fun stopScanning() {
-        if (!isScanning) {
-            return
-        }
-        handler?.post {
-            Log.d(tag, "stopScanning")
-            if (!bluetoothAdapter!!.cancelDiscovery()) {
-                Log.wtf(tag, "Cancel discovery failed :(")
-            }
-        }
+        // Calling bluetoothAdapter.cancelDiscovery tend to break Bluetooth on some devices.
+        // Let's calm down and wait for this shit to finish
         while (isScanning) {
-            Log.i(tag, "Good ol' sleep until discovery is not turned off")
-            Thread.sleep(5000)
+            Log.d(tag, "Good ol' sleep until discovery is not turned off")
+            Thread.sleep(1000)
         }
     }
 
