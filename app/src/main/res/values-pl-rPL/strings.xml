@@ -20,7 +20,7 @@
     <string name="advertise">Rozgłaszaj</string>
     <string name="advertising">Rozgłaszanie…</string>
     <string name="found_devices">Wykryte urządzenia:</string>
-    <string name="advertising_error">Błąd rozgłaszania</string>
+    <string name="advertising_error">Błąd rozgłaszania (%1$d)</string>
     <string name="connection_error">Błąd połączenia</string>
     <string name="connection_error_details">Błąd połączenia: %1$s</string>
     <string name="bluetooth_disabled_error">Aplikacja do prawidłowego działania potrzebuje włączonego adaptera bluetooth</string>
