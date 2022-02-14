@@ -211,11 +211,13 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         }
     }
 
-    override fun onAdvertiseFailure() {
+    override fun onAdvertiseFailure(errorCode: Int) {
         runOnUiThread {
-            Toast.makeText(this, getString(R.string.advertising_error), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.advertising_error, errorCode), Toast.LENGTH_SHORT).show()
+            findViewById<ProgressBar>(R.id.advertise_spinner).visibility = View.INVISIBLE
             findViewById<Button>(R.id.advertise_button).text = getString(R.string.advertise)
             setScanningEnabled(true)
+            setStatusText()
         }
     }
 

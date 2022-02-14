@@ -19,7 +19,7 @@
     <string name="advertise">Advertise</string>
     <string name="advertising">Advertising…</string>
     <string name="found_devices">Discovered devices:</string>
-    <string name="advertising_error">Advertising error</string>
+    <string name="advertising_error">Advertising error (%1$d)</string>
     <string name="connection_error">Connection error</string>
     <string name="connection_error_details">Connection error: %1$s</string>
     <string name="bluetooth_disabled_error">Application needs bluetooth adapter turned on to work correctly</string>

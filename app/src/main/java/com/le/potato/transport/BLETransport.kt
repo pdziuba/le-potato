@@ -22,6 +22,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
 const val ADVERTISE_TIMEOUT = 60000L
+const val BLE_MAX_ADV_SIZE = 31
 
 class BLETransport : AbstractHIDTransport() {
     private val tag = BLETransport::class.java.simpleName
@@ -40,7 +41,7 @@ class BLETransport : AbstractHIDTransport() {
 
     override fun init(context: Context, reportMap: ByteArray) {
         super.init(context, reportMap)
-           if (!bluetoothAdapter!!.isMultipleAdvertisementSupported) {
+        if (!bluetoothAdapter!!.isMultipleAdvertisementSupported) {
             throw UnsupportedOperationException("Bluetooth LE Advertising not supported on this device.")
         }
         bluetoothLeAdvertiser = bluetoothAdapter!!.bluetoothLeAdvertiser
@@ -83,8 +84,15 @@ class BLETransport : AbstractHIDTransport() {
                     val bluetoothDevice =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice? ?: return
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, Integer.MIN_VALUE)
-                    Log.d(tag, "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}")
-                    if (bondState == BluetoothDevice.BOND_BONDED && bluetoothDevice.address == connectingDevice?.address) {
+                    Log.d(
+                        tag,
+                        "BOND STATE = ${bondStateLabels[bondState]} device = ${bluetoothDevice.address} connecting device = ${connectingDevice?.address}"
+                    )
+                    if (bondState in intArrayOf(
+                            BluetoothDevice.BOND_BONDED,
+                            BluetoothDevice.BOND_BONDING
+                        ) && bluetoothDevice.address == connectingDevice?.address
+                    ) {
                         finalizeConnection(bluetoothDevice)
                     }
                 }
@@ -131,7 +139,7 @@ class BLETransport : AbstractHIDTransport() {
             super.onStartFailure(errorCode)
             Log.e(tag, "Advertising failure: $errorCode")
             serviceSemaphore.release()
-            advertisingListener?.onAdvertiseFailure()
+            advertisingListener?.onAdvertiseFailure(errorCode)
         }
     }
 
@@ -383,9 +391,24 @@ class BLETransport : AbstractHIDTransport() {
                 .setIncludeDeviceName(true)
                 .setIncludeTxPowerLevel(false)
 
+            var serviceUUIDsize = 0
             for (serviceUuid in serviceUUIDs) {
                 advertiseDataBuilder.addServiceUuid(serviceUuid)
                 scanResultBuilder.addServiceUuid(serviceUuid)
+                serviceUUIDsize += 4
+            }
+            val devNameLength = bluetoothAdapter?.name?.toByteArray()?.size ?: 0
+            val totalSize = devNameLength + serviceUUIDsize
+            if (totalSize > BLE_MAX_ADV_SIZE) {
+                Log.d(
+                    tag,
+                    "Calculated adv data size is $totalSize bytes which exceeds max size of advertise packets. Trying to trim advertised name."
+                )
+                val maxDevNameLength = BLE_MAX_ADV_SIZE - serviceUUIDsize - 1
+                if (maxDevNameLength > 0) {
+                    bluetoothAdapter!!.name =
+                        String(bluetoothAdapter!!.name.toByteArray().copyOfRange(0, maxDevNameLength))
+                }
             }
 
             bluetoothLeAdvertiser?.startAdvertising(
