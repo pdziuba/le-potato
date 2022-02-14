@@ -1,19 +1,11 @@
 package com.le.potato
 
-import android.content.Context
 import android.util.Log
 import android.view.KeyEvent
 import com.le.potato.transport.HIDTransport
 
-class KeyboardWithPointer(private val context: Context) {
-    private var _hidTransport: HIDTransport? = null
-
-    var hidTransport: HIDTransport?
-        get() = _hidTransport
-        set(value) {
-            _hidTransport = value
-            value?.init(context, reportMap)
-        }
+class KeyboardWithPointer {
+    var hidTransport: HIDTransport? = null
 
     private fun addInputReport(reportId: Int, report: ByteArray) {
         Log.d("addInputReport", report.joinToString { "%02X".format(it) })
@@ -62,14 +54,11 @@ class KeyboardWithPointer(private val context: Context) {
 
     private val lastSent = ByteArray(4)
 
-    private fun clamp(input: Int): Int {
-        return kotlin.math.max(-127, kotlin.math.min(127, input))
+    private fun clamp(input: Int): Byte {
+        return kotlin.math.max(-127, kotlin.math.min(127, input)).toByte()
     }
 
     fun movePointer(dx: Int, dy: Int, wheel: Int, leftButton: Boolean, rightButton: Boolean, middleButton: Boolean) {
-        val dx = clamp(dx)
-        val dy = clamp(dy)
-        val wheel = clamp(wheel)
         var button = 0
         if (leftButton) {
             button = button or 1
@@ -82,9 +71,9 @@ class KeyboardWithPointer(private val context: Context) {
         }
         val report = ByteArray(5)
         report[0] = button.toByte()
-        report[1] = dx.toByte()
-        report[2] = dy.toByte()
-        report[3] = wheel.toByte()
+        report[1] = clamp(dx)
+        report[2] = clamp(dy)
+        report[3] = clamp(wheel)
 
         var hasNonZero = false
         for (v in lastSent + report) {

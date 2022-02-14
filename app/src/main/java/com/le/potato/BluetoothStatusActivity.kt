@@ -4,9 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.content.ComponentName
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -63,12 +61,20 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         discoveredDevicesListAdapter = BLEDevicesListAdapter(this)
         configureDevicesList(findViewById(R.id.paired_devices), pairedDevicesListAdapter!!)
         configureDevicesList(findViewById(R.id.discovered_devices), discoveredDevicesListAdapter!!)
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        registerReceiver(btReceiver, intentFilter)
     }
 
     override fun onStart() {
         super.onStart()
         val intent = Intent(this, BluetoothFacadeService::class.java)
         bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+        loadBluetoothStatus()
+
+        if (!bluetoothAdapter!!.isEnabled) {
+            BluetoothEnabler.enableBluetoothOrFinish(this)
+        }
     }
 
     private fun configureDevicesList(recyclerView: RecyclerView, adapter: BLEDevicesListAdapter) {
@@ -81,24 +87,8 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         bluetoothService?.unregisterDeviceConnectedListener(this)
         bluetoothService?.deviceDiscoveryListener = null
         bluetoothService?.advertisingListener = null
+        unregisterReceiver(btReceiver)
         super.onDestroy()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (bluetoothAdapter == null) {
-            // world cornered us again
-            finish()
-            return
-        }
-        // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
-        // fire an intent to display a dialog asking the user to grant permission to enable it.
-        if (!bluetoothAdapter!!.isEnabled) {
-            BluetoothEnabler.enableBluetoothOrFinish(this)
-        } else {
-            loadBluetoothStatus()
-            loadBTDevicesState()
-        }
     }
 
     override fun onStop() {
@@ -111,6 +101,8 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     }
 
     private fun loadBluetoothStatus() {
+        findViewById<Button>(R.id.scan_button).isEnabled = bluetoothAdapter?.isEnabled == true
+        findViewById<Button>(R.id.advertise_button).isEnabled = bluetoothAdapter?.isEnabled == true
         val bluetoothAdapter = bluetoothAdapter ?: return
         val deviceName = bluetoothAdapter.name
         findViewById<TextView>(R.id.device_name_text).text = deviceName
@@ -119,6 +111,8 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     private fun loadBTDevicesState() {
         val bluetoothAdapter = bluetoothAdapter ?: return
         val bluetoothFacadeService = bluetoothService ?: return
+        findViewById<TextView>(R.id.paired_devices_text).visibility = if (bluetoothAdapter.bondedDevices.isEmpty()) View.INVISIBLE else View.VISIBLE
+        pairedDevicesListAdapter?.clear()
         for (device in bluetoothAdapter.bondedDevices) {
             val state = when {
                 (bluetoothFacadeService.connectedDevice?.address == device.address) -> BluetoothProfile.STATE_CONNECTED
@@ -138,7 +132,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
     private fun setStatusText() {
         val statusTextView = findViewById<TextView>(R.id.status_text2)
-        StatusMixin.setStatusText(statusTextView, bluetoothService, this)
+        StatusMixin.setStatusText(statusTextView, bluetoothService, bluetoothAdapter, this)
     }
 
     inner class DeviceClickListener(private val adapter: BLEDevicesListAdapter) :
@@ -185,11 +179,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
     @Suppress("UNUSED_PARAMETER")
     fun onScanButtonClicked(view: View?) {
-        if (bluetoothService?.isScanning == true) {
-            bluetoothService?.stopScanning()
-        } else {
-            bluetoothService?.startScanning()
-        }
+        bluetoothService?.startScanning()
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -280,6 +270,21 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             pairedDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
             discoveredDevicesListAdapter?.updateDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
             setStatusText()
+        }
+    }
+
+    private val btReceiver = object: BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)) {
+                    BluetoothAdapter.STATE_ON, BluetoothAdapter.STATE_OFF -> {
+                        loadBluetoothStatus()
+                        loadBTDevicesState()
+                    }
+                }
+            }
         }
     }
 }

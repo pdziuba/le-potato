@@ -353,11 +353,9 @@ class BLETransport : AbstractHIDTransport() {
     }
 
     fun startAdvertising() {
-        synchronized(connectedDevicesMap) {
-            if (isAdvertising || connectedDevicesMap.isNotEmpty()) {
-                Log.w(tag, "Already advertising???")
-                return
-            }
+        if (isAdvertising) {
+            Log.w(tag, "Already advertising???")
+            return
         }
 
         handler?.post { // set up advertising setting

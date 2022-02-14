@@ -1,10 +1,13 @@
 package com.le.potato.transport
 
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Binder
 import android.os.IBinder
 import android.util.Log
@@ -13,6 +16,8 @@ import android.util.Log
 class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSubject()) : Service(), HIDTransport,
     DeviceConnectionObservable by subject {
     private val tag = BluetoothFacadeService::class.java.simpleName
+    private var reportMap: ByteArray? = null
+    private var bluetoothAdapter: BluetoothAdapter? = null
     private val bleTransport = BLETransport()
     private val classicTransport = BluetoothClassicTransport()
     private var activeTransport: HIDTransport? = null
@@ -78,15 +83,29 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     }
 
     override fun onCreate() {
-        val bluetoothManager =
-            applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val bluetoothAdapter = bluetoothManager.adapter
-        while (!bluetoothAdapter.isEnabled) {
-            Log.d(tag, "Waiting for bluetooth adapter to be enabled")
-            Thread.sleep(1000)
-        }
+        val bluetoothManager = applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+            ?: throw UnsupportedOperationException("Bluetooth is not available.")
         bleTransport.registerDeviceConnectedListener(bleListener)
         classicTransport.registerDeviceConnectedListener(classicListener)
+        val intentFilter = IntentFilter()
+        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+        applicationContext.registerReceiver(btReceiver, intentFilter)
+    }
+
+    private val btReceiver = object: BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val newState = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)
+                Log.d(tag, "Bluetooth adapter state changed to $newState")
+                when (newState) {
+                    BluetoothAdapter.STATE_TURNING_OFF -> deactivate()
+                    BluetoothAdapter.STATE_ON -> init(applicationContext, reportMap!!)
+                }
+            }
+        }
     }
 
     inner class LocalBinder : Binder() {
@@ -104,11 +123,13 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         bleTransport.unregisterDeviceConnectedListener(bleListener)
         classicTransport.unregisterDeviceConnectedListener(classicListener)
         deactivate()
+        applicationContext.unregisterReceiver(btReceiver)
     }
 
     override fun init(context: Context, reportMap: ByteArray) {
-        if (!initialized) {
-            Log.i(tag, "Init called")
+        this.reportMap = reportMap
+        if (!initialized && bluetoothAdapter!!.isEnabled) {
+            Log.d(tag, "Init called")
             bleTransport.init(context, reportMap)
             classicTransport.init(context, reportMap)
             initialized = true
@@ -127,6 +148,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         if (initialized) {
             bleTransport.deactivate()
             classicTransport.deactivate()
+            initialized = false
         }
     }
 
