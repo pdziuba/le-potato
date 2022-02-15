@@ -153,9 +153,11 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
     override fun onDeviceDetected(device: BluetoothDevice) {
         runOnUiThread {
-            findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.VISIBLE
-            findViewById<TextView>(R.id.discovered_devices_text).visibility = View.VISIBLE
-            discoveredDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            if (pairedDevicesListAdapter?.hasDevice(device.address) == false) {
+                findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.VISIBLE
+                findViewById<TextView>(R.id.discovered_devices_text).visibility = View.VISIBLE
+                discoveredDevicesListAdapter?.addDevice(BTDeviceWrapper(device, BluetoothProfile.STATE_DISCONNECTED))
+            }
         }
     }
 

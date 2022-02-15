@@ -26,6 +26,8 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     var deviceDiscoveryListener: DeviceDiscoveryListener? = null
     private val inputReportQueue: Queue<Pair<Int, ByteArray>> = ConcurrentLinkedQueue()
     private var reportingTimer: Timer? = null
+    private var connectionTimeout: Timer? = null
+    private var hidProfileRegistered: Boolean = false
 
     val isScanning: Boolean
         get() = bluetoothAdapter?.isDiscovering ?: false
@@ -35,6 +37,8 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             connectedDevicesMap.put(device.address, device)
         }
         connectingDevice = null
+        connectionTimeout?.cancel()
+        connectionTimeout = null
         fireDeviceConnectedEvent(device)
     }
 
@@ -92,6 +96,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     val classicHidCallback = object : BluetoothHidDevice.Callback() {
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             super.onAppStatusChanged(pluggedDevice, registered)
+            hidProfileRegistered = registered
             Log.i(tag, "ClassicHID app status changed device is $pluggedDevice registered $registered")
 
         }
@@ -172,13 +177,31 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         applicationContext?.unregisterReceiver(btReceiver)
     }
 
+    override fun fireDeviceConnectionErrorEvent(device: BluetoothDevice, error: String?) {
+        super.fireDeviceConnectionErrorEvent(device, error)
+        connectingDevice = null
+        connectionTimeout?.cancel()
+        connectionTimeout = null
+    }
+
+    override fun fireDeviceDisconnectedEvent(device: BluetoothDevice) {
+        super.fireDeviceDisconnectedEvent(device)
+        connectingDevice = null
+        connectionTimeout?.cancel()
+        connectionTimeout = null
+    }
+
     fun connectToDevice(device: BluetoothDevice?) {
-        if (device == null) {
+        if (device == null || connectingDevice != null) {
             return
         }
         val hidDevice = hidDevice
         if (hidDevice == null) {
             fireDeviceConnectionErrorEvent(device, "HID Device not initialized")
+            return
+        }
+        if (!hidProfileRegistered) {
+            fireDeviceConnectionErrorEvent(device, "HID Profile not registered")
             return
         }
         synchronized(connectedDevicesMap) {
@@ -203,6 +226,14 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             fireDeviceConnectingEvent(device)
             if (!hidDevice.connect(device)) {
                 fireDeviceConnectionErrorEvent(device)
+            } else {
+                connectionTimeout = Timer()
+                connectionTimeout!!.schedule(object : TimerTask() {
+                    override fun run() {
+                        Log.e(tag, "Connection time out, firing error event")
+                        fireDeviceConnectionErrorEvent(device, "Connection timeout")
+                    }
+                }, 30000L)
             }
         }
     }
