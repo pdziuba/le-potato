@@ -136,7 +136,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         }
     }
 
-    override fun addInputReport(reportId: Int, report: ByteArray) {
+    override fun addInputReport(reportId: Byte, report: ByteArray) {
         activeTransport?.addInputReport(reportId, report)
     }
 

@@ -24,7 +24,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
     private var connectingDevice: BluetoothDevice? = null
     private var hidDevice: BluetoothHidDevice? = null
     var deviceDiscoveryListener: DeviceDiscoveryListener? = null
-    private val inputReportQueue: Queue<Pair<Int, ByteArray>> = ConcurrentLinkedQueue()
+    private val inputReportQueue: Queue<Pair<Byte, ByteArray>> = ConcurrentLinkedQueue()
     private var reportingTimer: Timer? = null
     private var connectionTimeout: Timer? = null
     private var hidProfileRegistered: Boolean = false
@@ -146,7 +146,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
         }
     }
 
-    override fun addInputReport(reportId: Int, report: ByteArray) {
+    override fun addInputReport(reportId: Byte, report: ByteArray) {
         inputReportQueue.offer(Pair(reportId, report))
     }
 
@@ -333,7 +333,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                         }
                         for (device in devices) {
                             try {
-                                val result = hidDevice?.sendReport(device, polled.first, polled.second)
+                                val result = hidDevice?.sendReport(device, polled.first.toInt(), polled.second)
                                 if (result != true) {
                                     Log.e(tag, "Failed to send notification. Reason unknown.")
                                 } else {

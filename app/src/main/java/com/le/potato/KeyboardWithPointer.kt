@@ -4,10 +4,13 @@ import android.util.Log
 import android.view.KeyEvent
 import com.le.potato.transport.HIDTransport
 
+const val KEYBOARD_REPORT_ID: Byte = 1
+const val MOUSE_REPORT_ID: Byte = 2
+
 class KeyboardWithPointer {
     var hidTransport: HIDTransport? = null
 
-    private fun addInputReport(reportId: Int, report: ByteArray) {
+    private fun addInputReport(reportId: Byte, report: ByteArray) {
         Log.d("addInputReport", report.joinToString { "%02X".format(it) })
         hidTransport?.addInputReport(reportId, report.clone())
     }
@@ -23,7 +26,7 @@ class KeyboardWithPointer {
             addInputReport(1, report)
         }
         report[KEY_PACKET_KEY_INDEX] = eventKeycodeToReportMap[keyCode]!!.toByte()
-        addInputReport(1, report)
+        addInputReport(KEYBOARD_REPORT_ID, report)
     }
 
     private fun setModifierField(
@@ -46,9 +49,9 @@ class KeyboardWithPointer {
         }
         val report = ByteArray(8)
         setModifierField(isCtrl, isShift, isAlt, report)
-        addInputReport(1, report)
+        addInputReport(KEYBOARD_REPORT_ID, report)
         if (report[KEY_PACKET_MODIFIER_KEY_INDEX] != MODIFIER_KEY_NONE.toByte()) {
-            addInputReport(1, EMPTY_KEYBOARD_REPORT)
+            addInputReport(KEYBOARD_REPORT_ID, EMPTY_KEYBOARD_REPORT)
         }
     }
 
@@ -88,7 +91,7 @@ class KeyboardWithPointer {
         lastSent[1] = report[1]
         lastSent[2] = report[2]
         lastSent[3] = report[3]
-        addInputReport(2, report)
+        addInputReport(MOUSE_REPORT_ID, report)
     }
 
     companion object {
@@ -185,7 +188,7 @@ class KeyboardWithPointer {
             USAGE_PAGE(1), 0x01,  // Generic Desktop Ctrls
             USAGE(1), 0x06,  // Keyboard
             COLLECTION(1), 0x01,  // Application
-            REPORT_ID(1), 0x01,
+            REPORT_ID(1), KEYBOARD_REPORT_ID,
             USAGE_PAGE(1), 0x07,  //   Kbrd/Keypad
             USAGE_MINIMUM(1), 0xE0.toByte(),
             USAGE_MAXIMUM(1), 0xE7.toByte(),
@@ -220,7 +223,7 @@ class KeyboardWithPointer {
             USAGE_PAGE(1), 0x01,  // Generic Desktop
             USAGE(1), 0x02,  // Mouse
             COLLECTION(1), 0x01,  // Application
-            REPORT_ID(1), 0x02,
+            REPORT_ID(1), MOUSE_REPORT_ID,
             USAGE(1), 0x01,  //  Pointer
             COLLECTION(1), 0x00,  //  Physical
             USAGE_PAGE(1), 0x09,  //   Buttons
