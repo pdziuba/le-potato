@@ -102,7 +102,7 @@ class BLETransport : AbstractHIDTransport() {
         }
     }
 
-    override fun addInputReport(reportId: Int, report: ByteArray) {
+    override fun addInputReport(reportId: Byte, report: ByteArray) {
         hidService.addInputReport(reportId, report)
     }
 

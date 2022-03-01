@@ -18,7 +18,7 @@ class HIDService(
     private val tag = "HIDService"
     private val emptyBytes = byteArrayOf()
     // map of reportId -> instanceId
-    private val reportIdMap = HashMap<Int, BluetoothGattCharacteristic>()
+    private val reportIdMap = HashMap<Byte, BluetoothGattCharacteristic>()
     private val inputReportQueue: Queue<Pair<BluetoothGattCharacteristic, ByteArray>> = ConcurrentLinkedQueue()
     private var gattService: BluetoothGattService? = null
 
@@ -35,7 +35,7 @@ class HIDService(
         val CHARACTERISTIC_HID_INFORMATION_VALUE = byteArrayOf(0x11, 0x01, 0x00, 0x03)
     }
 
-    override fun addInputReport(reportId: Int, inputReport: ByteArray?) {
+    override fun addInputReport(reportId: Byte, inputReport: ByteArray?) {
         if (inputReport != null && inputReport.isNotEmpty()) {
             val characteristic = reportIdMap[reportId]
             if (characteristic != null) {
@@ -109,7 +109,7 @@ class HIDService(
                 reportReferenceDescriptor.value = byteArrayOf(reportId.toByte(), 1)
                 characteristic.addDescriptor(reportReferenceDescriptor)
                 addCharacteristic(service, characteristic)
-                reportIdMap[reportId] = characteristic
+                reportIdMap[reportId.toByte()] = characteristic
             }
         }
 

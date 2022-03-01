@@ -7,7 +7,7 @@ import java.util.*
 
 interface GattServiceHandler {
     fun setup(): BluetoothGattService?
-    fun addInputReport(reportId: Int, inputReport: ByteArray?)
+    fun addInputReport(reportId: Byte, inputReport: ByteArray?)
     fun pollInputReportQueue(): Pair<BluetoothGattCharacteristic?, ByteArray?>
     fun onCharacteristicReadRequest(
         device: BluetoothDevice,
@@ -62,7 +62,7 @@ abstract class AbstractGattServiceHandler: GattServiceHandler {
         }
     }
 
-    override fun addInputReport(reportId: Int, inputReport: ByteArray?) {}
+    override fun addInputReport(reportId: Byte, inputReport: ByteArray?) {}
 
     override fun onCharacteristicReadRequest(
         device: BluetoothDevice,
