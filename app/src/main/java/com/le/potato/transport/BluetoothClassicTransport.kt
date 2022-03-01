@@ -220,10 +220,9 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                     fireDeviceDisconnectedEvent(connectedDevice)
                 }
             }
-
-            stopScanning()
             connectingDevice = device
             fireDeviceConnectingEvent(device)
+            stopScanning()
             if (!hidDevice.connect(device)) {
                 fireDeviceConnectionErrorEvent(device)
             } else {
