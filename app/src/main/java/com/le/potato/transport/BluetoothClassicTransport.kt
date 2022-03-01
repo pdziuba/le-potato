@@ -254,9 +254,9 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             hidDevice = hidProfile
             Log.i(tag, "Profile HID connected")
             val sdpSettings = BluetoothHidDeviceAppSdpSettings(
-                "KogucikHID",
-                "OMG",
-                "Przemo",
+                "ELPotatoApp",
+                "Virtual HID",
+                "PrzemoDev",
                 BluetoothHidDevice.SUBCLASS1_COMBO,
                 reportMap
             )
