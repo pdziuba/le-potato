@@ -160,7 +160,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         keyboardButton.setOnFocusChangeListener { v, hasFocus ->
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             if (hasFocus) {
-                replaceInputFragment(0)
+                displayInputFragment(InputFragment.KEYBOARD)
                 imm.showSoftInput(v, InputMethodManager.SHOW_FORCED)
             } else {
                 imm.hideSoftInputFromWindow(v.applicationWindowToken, 0)
@@ -168,7 +168,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
         findViewById<Button>(R.id.mouse_button).setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                replaceInputFragment(1)
+                displayInputFragment(InputFragment.MOUSE)
             }
         }
         val intentFilter = IntentFilter()
@@ -210,10 +210,15 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         }
     }
 
-    private fun replaceInputFragment(targetFragment: Int) {
+    private enum class InputFragment {
+        KEYBOARD,
+        MOUSE
+    }
+
+    private fun displayInputFragment(targetFragment: InputFragment?) {
         val fragment = when (targetFragment) {
-            0 -> KeyboardFragment()
-            1 -> MouseFragment()
+            InputFragment.KEYBOARD -> KeyboardFragment()
+            InputFragment.MOUSE -> MouseFragment()
             else -> null
         }
         val tx = supportFragmentManager.beginTransaction()
@@ -221,10 +226,10 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
         if (fragment != null) {
             if (currentInputFragment == null) {
                 tx.add(R.id.fragmentContainerView, fragment)
-                currentInputFragment = fragment
             } else {
                 tx.replace(R.id.fragmentContainerView, fragment)
             }
+            currentInputFragment = fragment
         } else if (currentInputFragment != null) {
             tx.remove(currentInputFragment!!)
             currentInputFragment = null
@@ -235,7 +240,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     fun onKeyboardButtonClicked(view: View) {
-        replaceInputFragment(0)
+        displayInputFragment(InputFragment.KEYBOARD)
 
         if (view.hasFocus()) {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -246,7 +251,7 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
     }
 
     fun onMouseButtonClicked(view: View) {
-        replaceInputFragment(1)
+        displayInputFragment(InputFragment.KEYBOARD)
         view.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.hideSoftInputFromWindow(view.applicationWindowToken, 0)
