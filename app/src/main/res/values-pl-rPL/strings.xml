@@ -3,13 +3,13 @@
     <string name="app_name">El Potato</string>
     <string name="connection_status">Stan połączenia</string>
     <string name="button_keyboard">Klawiatura</string>
-    <string name="button_mouse">Myszka</string>
+    <string name="button_mouse">Mysz</string>
     <string name="bluetooth_settings">Ustawienia bluetooth</string>
-    <string name="touchpad">Touchpad</string>
+    <string name="touchpad">Panel dotykowy</string>
     <string name="device_name">Nazwa urządzenia</string>
     <string name="bluetooth_turned_on">Bluetooth włączony?</string>
     <string name="paired_devices">Sparowane urządzenia:</string>
-    <string name="stop">Stop</string>
+    <string name="stop">Zatrzymaj</string>
     <string name="scan">Skanuj</string>
     <string name="scanning">Skanowanie…</string>
     <string name="status_idle">Brak połączenia</string>
