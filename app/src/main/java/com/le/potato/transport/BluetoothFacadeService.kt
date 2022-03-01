@@ -4,11 +4,9 @@ import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.os.Binder
+import android.os.Handler
 import android.os.IBinder
 import android.util.Log
 
@@ -26,7 +24,11 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     private var initialized = false
     private var _connectedDevice: BluetoothDevice? = null
     private var _connectingDevice: BluetoothDevice? = null
-
+    private var preferences: SharedPreferences? = null
+    companion object {
+        const val LAST_CONNECTED_DEVICE = "last_connected_device"
+        const val LAST_ACTIVE_TRANSPORT = "last_active_transport"
+    }
     var deviceDiscoveryListener: DeviceDiscoveryListener?
         get() = classicTransport.deviceDiscoveryListener
         set(value) {
@@ -60,6 +62,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
             _connectingDevice = null
             _connectedDevice = device
             fireDeviceConnectedEvent(device)
+            saveLastConnectedDevice()
         }
 
         override fun onDeviceConnecting(device: BluetoothDevice) {
@@ -82,6 +85,48 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         }
     }
 
+    private fun saveLastConnectedDevice() {
+        val lastConnectedDevice = connectedDevice ?: return
+        val lastActiveTransport = activeTransport ?: return
+        val settings = preferences ?: return
+        with(settings.edit()) {
+            putString(LAST_CONNECTED_DEVICE, lastConnectedDevice.address)
+            if (lastActiveTransport === bleTransport) {
+                putString(LAST_ACTIVE_TRANSPORT, "BLE")
+            } else {
+                putString(LAST_ACTIVE_TRANSPORT, "CLASSIC")
+            }
+            apply()
+        }
+    }
+
+    private fun eraseLastConnectedDevice() {
+        val settings = preferences ?: return
+        with(settings.edit()) {
+            remove(LAST_CONNECTED_DEVICE)
+            remove(LAST_ACTIVE_TRANSPORT)
+            apply()
+        }
+    }
+
+    private fun reconnectToLastDevice() {
+        val settings = preferences ?: return
+        val lastConnectedDeviceAddr = settings.getString(LAST_CONNECTED_DEVICE, null) ?: return
+        val lastActiveTransport = settings.getString(LAST_ACTIVE_TRANSPORT, null) ?: return
+        Handler(applicationContext.mainLooper).postDelayed({
+            if (connectedDevice != null) {
+                return@postDelayed
+            }
+            if (lastActiveTransport == "BLE") {
+                startAdvertising()
+            } else {
+                val lastConnectedDevice = bluetoothAdapter?.getRemoteDevice(lastConnectedDeviceAddr) ?: return@postDelayed
+                connectToDevice(lastConnectedDevice)
+            }
+        }, 2000)
+
+    }
+
     override fun onCreate() {
         val bluetoothManager = applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = bluetoothManager.adapter
@@ -91,6 +136,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         val intentFilter = IntentFilter()
         intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         applicationContext.registerReceiver(btReceiver, intentFilter)
+        preferences = applicationContext.getSharedPreferences(applicationInfo.packageName, Context.MODE_PRIVATE)
     }
 
     private val btReceiver = object: BroadcastReceiver() {
@@ -133,6 +179,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
             bleTransport.init(context, reportMap)
             classicTransport.init(context, reportMap)
             initialized = true
+            reconnectToLastDevice()
         }
     }
 
@@ -142,6 +189,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
 
     override fun disconnect(device: BluetoothDevice) {
         activeTransport?.disconnect(device)
+        eraseLastConnectedDevice()
     }
 
     override fun deactivate() {
