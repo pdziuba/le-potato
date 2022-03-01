@@ -162,68 +162,73 @@ class HIDService(
         gattServer: BluetoothGattServer
     ): Boolean {
         val characteristicUuid = characteristic.uuid
-        if (CHARACTERISTIC_HID_INFORMATION == characteristicUuid) {
-            gattServer.sendResponse(
-                device,
-                requestId,
-                BluetoothGatt.GATT_SUCCESS,
-                0,
-                CHARACTERISTIC_HID_INFORMATION_VALUE
-            )
-            return true
-        } else if (CHARACTERISTIC_REPORT_MAP == characteristicUuid) {
-            //todo: handle MTU
-            if (offset == 0) {
+        when {
+            CHARACTERISTIC_HID_INFORMATION == characteristicUuid -> {
                 gattServer.sendResponse(
                     device,
                     requestId,
                     BluetoothGatt.GATT_SUCCESS,
                     0,
-                    reportMap
+                    CHARACTERISTIC_HID_INFORMATION_VALUE
                 )
-            } else {
-                val remainLength = reportMap.size - offset
-                if (remainLength > 0) {
-                    val data = ByteArray(remainLength)
-                    System.arraycopy(reportMap, offset, data, 0, remainLength)
+                return true
+            }
+            CHARACTERISTIC_REPORT_MAP == characteristicUuid -> {
+                //todo: handle MTU
+                if (offset == 0) {
                     gattServer.sendResponse(
                         device,
                         requestId,
                         BluetoothGatt.GATT_SUCCESS,
-                        offset,
-                        data
+                        0,
+                        reportMap
                     )
                 } else {
-                    gattServer.sendResponse(
-                        device,
-                        requestId,
-                        BluetoothGatt.GATT_SUCCESS,
-                        offset,
-                        null
-                    )
+                    val remainLength = reportMap.size - offset
+                    if (remainLength > 0) {
+                        val data = ByteArray(remainLength)
+                        System.arraycopy(reportMap, offset, data, 0, remainLength)
+                        gattServer.sendResponse(
+                            device,
+                            requestId,
+                            BluetoothGatt.GATT_SUCCESS,
+                            offset,
+                            data
+                        )
+                    } else {
+                        gattServer.sendResponse(
+                            device,
+                            requestId,
+                            BluetoothGatt.GATT_SUCCESS,
+                            offset,
+                            null
+                        )
+                    }
                 }
+                return true
             }
-            return true
-        } else if (CHARACTERISTIC_HID_CONTROL_POINT == characteristicUuid) {
-            gattServer.sendResponse(
-                device,
-                requestId,
-                BluetoothGatt.GATT_SUCCESS,
-                0,
-                byteArrayOf(0)
-            )
-            return true
-        } else if (CHARACTERISTIC_REPORT == characteristicUuid) {
-            gattServer.sendResponse(
-                device,
-                requestId,
-                BluetoothGatt.GATT_SUCCESS,
-                0,
-                emptyBytes
-            )
-            return true
+            CHARACTERISTIC_HID_CONTROL_POINT == characteristicUuid -> {
+                gattServer.sendResponse(
+                    device,
+                    requestId,
+                    BluetoothGatt.GATT_SUCCESS,
+                    0,
+                    byteArrayOf(0)
+                )
+                return true
+            }
+            CHARACTERISTIC_REPORT == characteristicUuid -> {
+                gattServer.sendResponse(
+                    device,
+                    requestId,
+                    BluetoothGatt.GATT_SUCCESS,
+                    0,
+                    emptyBytes
+                )
+                return true
+            }
+            else -> return false
         }
-        return false
     }
 
     override fun onCharacteristicWriteRequest(
