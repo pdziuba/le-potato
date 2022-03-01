@@ -52,13 +52,13 @@ class BLETransport : AbstractHIDTransport() {
 
 
         gattServiceHandlers.add(BatteryService())
-        gattServiceHandlers.add(DeviceInfoService("Samsung", "AmazingKbrd", "123456789"))
+        gattServiceHandlers.add(DeviceInfoService("ELPotato", "PotatoHID", "123456789"))
         hidService = HIDService(
             needInputReport = true,
             needOutputReport = true,
             needFeatureReport = false,
             reportMap = reportMap,
-            reportTypesCount = 2
+            reportTypesCount = 2 // todo: find number of distinct REPORT_IDs in reportMap instead of using hardcoded value
         )
         gattServiceHandlers.add(hidService)
 
