@@ -123,7 +123,7 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
                 val lastConnectedDevice = bluetoothAdapter?.getRemoteDevice(lastConnectedDeviceAddr) ?: return@postDelayed
                 connectToDevice(lastConnectedDevice)
             }
-        }, 2000)
+        }, 500)
 
     }
 
