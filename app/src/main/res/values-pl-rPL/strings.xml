@@ -27,4 +27,5 @@
     <string name="bluetooth_disabled">Adapter bluetooth jest wyłączony</string>
     <string name="connect">Połącz</string>
     <string name="disconnect">Rozłącz</string>
+    <string name="paired_devices_list">Lista sparowanych urządzeń</string>
 </resources>
