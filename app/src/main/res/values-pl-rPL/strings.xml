@@ -30,4 +30,8 @@
     <string name="paired_devices_list">Lista sparowanych urządzeń</string>
     <string name="permission_denied">Uprawnienie potrzebne do działania aplikacji nie zostało przyznane</string>
     <string name="discovery_failure">Nie udało się rozpocząć wykrywania urządzeń</string>
+    <string name="crash_dialog_text">Ups! Aplikacja uległa awarii :( Możesz wysłać raport do programisty aby ułatwić poprawienie błędu i uczynić Ziemniaczka lepszą aplikacją.</string>
+    <string name="crash">Błąd</string>
+    <string name="version_info">Informacje o wersji</string>
+    <string name="send_logs">Wyślij logi do programisty</string>
 </resources>

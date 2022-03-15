@@ -29,5 +29,9 @@
     <string name="paired_devices_list">List of paired devices</string>
     <string name="permission_denied">Permission required to run was not granted</string>
     <string name="discovery_failure">Failed to start bluetooth devices discovery</string>
+    <string name="crash_dialog_text">Sorry, the application crashed :( You can send the crash report to the developer to help making El Potato a better app.</string>
+    <string name="crash">Crash</string>
+    <string name="version_info">Version info</string>
+    <string name="send_logs">Send logs to developer</string>
 
 </resources>
