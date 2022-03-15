@@ -11,6 +11,7 @@ import com.le.potato.utils.connStateLabels
 import java.lang.IllegalStateException
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.concurrent.thread
 
 
 interface DeviceDiscoveryListener {
@@ -73,7 +74,11 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                             BluetoothDevice.BOND_BONDING
                         ) && bluetoothDevice == connectingDevice
                     ) {
-                        finalizeConnection(bluetoothDevice)
+                        if (hidDevice?.getConnectionState(bluetoothDevice) == BluetoothProfile.STATE_CONNECTED) {
+                            finalizeConnection(bluetoothDevice)
+                        } else {
+                            Log.i(tag, "Paired with device ${bluetoothDevice.address} but hid profile still not in connected state")
+                        }
                     }
                 }
                 BluetoothDevice.ACTION_FOUND -> {
@@ -211,29 +216,31 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
                 return
             }
         }
-        handler?.post {
-            for (connectedDevice in hidDevice.connectedDevices) {
-                if (connectedDevice.address != device.address) {
-                    hidDevice.disconnect(connectedDevice)
-                    synchronized(connectedDevicesMap) {
-                        connectedDevicesMap.remove(connectedDevice.address)
-                    }
-                    fireDeviceDisconnectedEvent(connectedDevice)
-                }
-            }
+        thread {
             connectingDevice = device
             fireDeviceConnectingEvent(device)
             stopScanning()
-            if (!hidDevice.connect(device)) {
-                fireDeviceConnectionErrorEvent(device)
-            } else {
-                connectionTimeout = Timer()
-                connectionTimeout!!.schedule(object : TimerTask() {
-                    override fun run() {
-                        Log.e(tag, "Connection time out, firing error event")
-                        fireDeviceConnectionErrorEvent(device, "Connection timeout")
+            handler?.post {
+                for (connectedDevice in hidDevice.connectedDevices) {
+                    if (connectedDevice.address != device.address) {
+                        hidDevice.disconnect(connectedDevice)
+                        synchronized(connectedDevicesMap) {
+                            connectedDevicesMap.remove(connectedDevice.address)
+                        }
+                        fireDeviceDisconnectedEvent(connectedDevice)
                     }
-                }, 30000L)
+                }
+                if (!hidDevice.connect(device)) {
+                    fireDeviceConnectionErrorEvent(device)
+                } else {
+                    connectionTimeout = Timer()
+                    connectionTimeout!!.schedule(object : TimerTask() {
+                        override fun run() {
+                            Log.e(tag, "Connection time out, firing error event")
+                            fireDeviceConnectionErrorEvent(device, "Connection timeout")
+                        }
+                    }, 30000L)
+                }
             }
         }
     }
