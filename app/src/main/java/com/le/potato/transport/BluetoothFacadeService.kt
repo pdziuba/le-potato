@@ -174,7 +174,8 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
 
     override fun init(context: Context, reportMap: ByteArray) {
         this.reportMap = reportMap
-        if (!initialized && bluetoothAdapter!!.isEnabled) {
+        val canInitialize = bluetoothAdapter!!.isEnabled
+        if (!initialized && canInitialize) {
             Log.d(tag, "Init called")
             bleTransport.init(context, reportMap)
             classicTransport.init(context, reportMap)

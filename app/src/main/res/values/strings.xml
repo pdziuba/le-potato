@@ -27,5 +27,7 @@
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="paired_devices_list">List of paired devices</string>
+    <string name="permission_denied">Permission required to run was not granted</string>
+    <string name="discovery_failure">Failed to start bluetooth devices discovery</string>
 
 </resources>
