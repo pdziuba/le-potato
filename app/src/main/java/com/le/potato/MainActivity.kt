@@ -1,12 +1,9 @@
 package com.le.potato
 
-import android.Manifest.permission.*
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.*
-import android.content.pm.PackageManager.PERMISSION_DENIED
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -17,29 +14,23 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentContainerView
 import com.le.potato.transport.BluetoothFacadeService
 import com.le.potato.transport.DeviceConnectedListener
 import com.le.potato.utils.BluetoothEnabler
+import com.le.potato.utils.PermissionsHelper
+import com.le.potato.utils.PermissionsResolvedListener
 import kotlin.math.max
 
 
-class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener {
+class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener, PermissionsResolvedListener {
     private val tag = MainActivity::class.java.simpleName
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothService: BluetoothFacadeService? = null
     private val keyboardWithPointer: KeyboardWithPointer = KeyboardWithPointer()
-    private var requestPermissionsLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            if (!it) {
-                Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT)
-                finish()
-            }
-        }
+    private val permissionsHelper: PermissionsHelper = PermissionsHelper(this, this)
     private var currentInputFragment: Fragment? = null
 
     private val serviceConnection = object : ServiceConnection {
@@ -178,36 +169,18 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
 
     override fun onStart() {
         super.onStart()
-        askForPermissions()
+        permissionsHelper.askForPermissions()
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         if (btManager.adapter?.isEnabled == false) {
-            BluetoothEnabler.enableBluetoothOrFinish(this)
+            BluetoothEnabler.enableBluetooth(this)
         }
-        bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
         super.onStop()
-        bluetoothService?.unregisterDeviceConnectedListener(this)
+        val bluetoothService = bluetoothService ?: return
+        bluetoothService.unregisterDeviceConnectedListener(this)
         unbindService(serviceConnection)
-    }
-
-    private fun askForPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADVERTISE) == PERMISSION_DENIED) {
-                requestPermissionsLauncher.launch(BLUETOOTH_ADVERTISE)
-            }
-            if (ContextCompat.checkSelfPermission(this, BLUETOOTH_CONNECT) == PERMISSION_DENIED) {
-                requestPermissionsLauncher.launch(BLUETOOTH_CONNECT)
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(this, BLUETOOTH_ADMIN) == PERMISSION_DENIED) {
-                requestPermissionsLauncher.launch(BLUETOOTH_ADMIN)
-            }
-            if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) == PERMISSION_DENIED) {
-                requestPermissionsLauncher.launch(ACCESS_FINE_LOCATION)
-            }
-        }
     }
 
     private enum class InputFragment {
@@ -375,6 +348,15 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedLis
                     }
                 }
             }
+        }
+    }
+
+    override fun permissionsResolved(granted: Boolean) {
+        if (granted) {
+            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
+        } else {
+            val statusTextView = findViewById<TextView>(R.id.status_text)
+            statusTextView.text = getString(R.string.permission_denied)
         }
     }
 }

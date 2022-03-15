@@ -28,4 +28,6 @@
     <string name="connect">Połącz</string>
     <string name="disconnect">Rozłącz</string>
     <string name="paired_devices_list">Lista sparowanych urządzeń</string>
+    <string name="permission_denied">Uprawnienie potrzebne do działania aplikacji nie zostało przyznane</string>
+    <string name="discovery_failure">Nie udało się rozpocząć wykrywania urządzeń</string>
 </resources>

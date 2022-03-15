@@ -22,7 +22,7 @@ object BluetoothEnabler {
         }
     }
 
-    fun enableBluetoothOrFinish(activity: ComponentActivity) {
+    fun enableBluetooth(activity: ComponentActivity) {
         val enableBluetoothActivity = activity.registerForActivityResult(EnableBluetoothContract()) { enabled ->
             if (enabled == Activity.RESULT_CANCELED) {
                 Toast.makeText(activity, activity.getString(R.string.bluetooth_disabled_error), Toast.LENGTH_SHORT).show()

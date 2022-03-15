@@ -17,6 +17,7 @@ interface DeviceDiscoveryListener {
     fun onDeviceDetected(device: BluetoothDevice)
     fun onDiscoveryStarted()
     fun onDiscoveryStopped()
+    fun onDiscoveryStartFailure()
 }
 
 class BluetoothClassicTransport : AbstractHIDTransport() {
@@ -304,6 +305,7 @@ class BluetoothClassicTransport : AbstractHIDTransport() {
             Log.d(tag, "startScanning")
             if (!bluetoothAdapter!!.startDiscovery()) {
                 Log.wtf(tag, "Start discovery failed!")
+                deviceDiscoveryListener?.onDiscoveryStartFailure()
             }
         }
     }

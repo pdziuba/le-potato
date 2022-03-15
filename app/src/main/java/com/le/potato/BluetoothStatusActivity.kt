@@ -17,15 +17,20 @@ import com.le.potato.bledevices.BLEDevicesListAdapter
 import com.le.potato.bledevices.BTDeviceWrapper
 import com.le.potato.transport.*
 import com.le.potato.utils.BluetoothEnabler
+import com.le.potato.utils.PermissionsHelper
+import com.le.potato.utils.PermissionsResolvedListener
 
 
 class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, DeviceConnectedListener,
-    DeviceDiscoveryListener {
+    PermissionsResolvedListener, DeviceDiscoveryListener {
     private val tag = BluetoothStatusActivity::class.java.simpleName
     private var pairedDevicesListAdapter: BLEDevicesListAdapter? = null
     private var discoveredDevicesListAdapter: BLEDevicesListAdapter? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothService: BluetoothFacadeService? = null
+    private var permissionsResolved = false
+    private var permissionsGranted = false
+    private val permissionsHelper: PermissionsHelper = PermissionsHelper(this, this)
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(p0: ComponentName?, _binder: IBinder?) {
@@ -43,7 +48,6 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         override fun onServiceDisconnected(p0: ComponentName?) {
             bluetoothService = null
         }
-
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,13 +72,7 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
 
     override fun onStart() {
         super.onStart()
-        val intent = Intent(this, BluetoothFacadeService::class.java)
-        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
-        loadBluetoothStatus()
-
-        if (!bluetoothAdapter!!.isEnabled) {
-            BluetoothEnabler.enableBluetoothOrFinish(this)
-        }
+        permissionsHelper.askForPermissions()
     }
 
     private fun configureDevicesList(recyclerView: RecyclerView, adapter: BLEDevicesListAdapter) {
@@ -84,9 +82,6 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
     }
 
     override fun onDestroy() {
-        bluetoothService?.unregisterDeviceConnectedListener(this)
-        bluetoothService?.deviceDiscoveryListener = null
-        bluetoothService?.advertisingListener = null
         unregisterReceiver(btReceiver)
         super.onDestroy()
     }
@@ -97,6 +92,10 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
         discoveredDevicesListAdapter?.clear()
         findViewById<RecyclerView>(R.id.discovered_devices).visibility = View.INVISIBLE
         findViewById<TextView>(R.id.discovered_devices_text).visibility = View.INVISIBLE
+        val bluetoothService = bluetoothService?: return
+        bluetoothService.unregisterDeviceConnectedListener(this)
+        bluetoothService.deviceDiscoveryListener = null
+        bluetoothService.advertisingListener = null
         unbindService(serviceConnection)
     }
 
@@ -176,6 +175,12 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             findViewById<ProgressBar>(R.id.scan_spinner).visibility = View.INVISIBLE
             setAdvertisingEnabled(true)
             setStatusText()
+        }
+    }
+
+    override fun onDiscoveryStartFailure() {
+        runOnUiThread {
+            Toast.makeText(this, getString(R.string.discovery_failure), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -284,11 +289,28 @@ class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, Device
             if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
                 when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF)) {
                     BluetoothAdapter.STATE_ON, BluetoothAdapter.STATE_OFF -> {
-                        loadBluetoothStatus()
-                        loadBTDevicesState()
+                        if (permissionsGranted) {
+                            loadBluetoothStatus()
+                            loadBTDevicesState()
+                        }
                     }
                 }
             }
+        }
+    }
+
+    override fun permissionsResolved(granted: Boolean) {
+        permissionsResolved = true
+        permissionsGranted = granted
+        if (granted) {
+            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
+            if (!bluetoothAdapter!!.isEnabled) {
+                BluetoothEnabler.enableBluetooth(this)
+            }
+            loadBluetoothStatus()
+        } else {
+            val statusTextView = findViewById<TextView>(R.id.status_text)
+            statusTextView.text = getString(R.string.permission_denied)
         }
     }
 }
