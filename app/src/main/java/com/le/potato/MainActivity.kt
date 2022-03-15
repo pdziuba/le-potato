@@ -14,7 +14,6 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentContainerView
 import com.le.potato.transport.BluetoothFacadeService
@@ -25,7 +24,7 @@ import com.le.potato.utils.PermissionsResolvedListener
 import kotlin.math.max
 
 
-class MainActivity : AppCompatActivity(), View.OnKeyListener, DeviceConnectedListener, PermissionsResolvedListener {
+class MainActivity : BaseActivity(), View.OnKeyListener, DeviceConnectedListener, PermissionsResolvedListener {
     private val tag = MainActivity::class.java.simpleName
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothService: BluetoothFacadeService? = null

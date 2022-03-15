@@ -9,19 +9,24 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.View
-import android.widget.*
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.Button
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.le.potato.bledevices.BLEDevicesListAdapter
 import com.le.potato.bledevices.BTDeviceWrapper
-import com.le.potato.transport.*
+import com.le.potato.transport.AdvertisingListener
+import com.le.potato.transport.BluetoothFacadeService
+import com.le.potato.transport.DeviceConnectedListener
+import com.le.potato.transport.DeviceDiscoveryListener
 import com.le.potato.utils.BluetoothEnabler
 import com.le.potato.utils.PermissionsHelper
 import com.le.potato.utils.PermissionsResolvedListener
 
 
-class BluetoothStatusActivity : AppCompatActivity(), AdvertisingListener, DeviceConnectedListener,
+class BluetoothStatusActivity : BaseActivity(), AdvertisingListener, DeviceConnectedListener,
     PermissionsResolvedListener, DeviceDiscoveryListener {
     private val tag = BluetoothStatusActivity::class.java.simpleName
     private var pairedDevicesListAdapter: BLEDevicesListAdapter? = null

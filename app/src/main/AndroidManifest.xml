@@ -21,6 +21,7 @@
     <uses-permission android:maxSdkVersion="30" android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
+        android:name=".PotatoApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
