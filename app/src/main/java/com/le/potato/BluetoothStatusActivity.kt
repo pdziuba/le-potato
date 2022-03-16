@@ -314,7 +314,7 @@ class BluetoothStatusActivity : BaseActivity(), AdvertisingListener, DeviceConne
             }
             loadBluetoothStatus()
         } else {
-            val statusTextView = findViewById<TextView>(R.id.status_text)
+            val statusTextView = findViewById<TextView>(R.id.status_text2)
             statusTextView.text = getString(R.string.permission_denied)
         }
     }
