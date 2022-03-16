@@ -308,7 +308,8 @@ class BluetoothStatusActivity : BaseActivity(), AdvertisingListener, DeviceConne
         permissionsResolved = true
         permissionsGranted = granted
         if (granted) {
-            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
+            startService(Intent(this, BluetoothFacadeService::class.java))
+            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, 0)
             if (!bluetoothAdapter!!.isEnabled) {
                 BluetoothEnabler.enableBluetooth(this)
             }

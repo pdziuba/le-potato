@@ -9,7 +9,10 @@ import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.util.Log
+import java.util.*
+import kotlin.concurrent.schedule
 
+const val SERVICE_TERMINATION_DELAY = 120000L
 
 class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSubject()) : Service(), HIDTransport,
     DeviceConnectionObservable by subject {
@@ -25,6 +28,8 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
     private var _connectedDevice: BluetoothDevice? = null
     private var _connectingDevice: BluetoothDevice? = null
     private var preferences: SharedPreferences? = null
+    private var terminationTimer: Timer? = null
+
     companion object {
         const val LAST_CONNECTED_DEVICE = "last_connected_device"
         const val LAST_ACTIVE_TRANSPORT = "last_active_transport"
@@ -55,6 +60,26 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
         set(value) {
             bleTransport.advertisingListener = value
         }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        return START_NOT_STICKY
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        Log.i(tag, "All service clients unbound, scheduling termination of the service")
+        terminationTimer = Timer()
+        terminationTimer?.schedule(SERVICE_TERMINATION_DELAY) {
+            this@BluetoothFacadeService.stopSelf()
+        }
+
+        return true
+    }
+
+    override fun onRebind(intent: Intent?) {
+        Log.i(tag, "New client bound, canceling termination")
+        terminationTimer?.cancel()
+        terminationTimer = null
+    }
 
     private inner class ConnectionListener(val source: HIDTransport) : DeviceConnectedListener {
         override fun onDeviceConnected(device: BluetoothDevice) {
@@ -203,10 +228,6 @@ class BluetoothFacadeService(subject: DeviceConnectedSubject = DeviceConnectedSu
 
     fun startScanning() {
         classicTransport.startScanning()
-    }
-
-    fun stopScanning() {
-        classicTransport.stopScanning()
     }
 
     fun startAdvertising() {
