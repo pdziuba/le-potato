@@ -11,7 +11,6 @@ import org.acra.ktx.initAcra
 class PotatoApp : Application() {
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
-
         initAcra {
             //core configuration:
             buildConfigClass = BuildConfig::class.java

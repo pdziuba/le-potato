@@ -352,7 +352,8 @@ class MainActivity : BaseActivity(), View.OnKeyListener, DeviceConnectedListener
 
     override fun permissionsResolved(granted: Boolean) {
         if (granted) {
-            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, BIND_AUTO_CREATE)
+            startService(Intent(this, BluetoothFacadeService::class.java))
+            bindService(Intent(this, BluetoothFacadeService::class.java), serviceConnection, 0)
         } else {
             val statusTextView = findViewById<TextView>(R.id.status_text)
             statusTextView.text = getString(R.string.permission_denied)
